@@ -8,9 +8,11 @@ main();
 
 async function main() {
     const towerEiffelData = await parse("/models/towerEiffel.obj");
+    const pisoData = await parse("/models/piso.obj");
+    const esferaData = await parse("/models/esfera.obj");
 
     const towerVertexShaderSource = await getFileContentsAsText("/shaders/basic.vs.glsl");
-	const towerFragmentShaderSource = await getFileContentsAsText("/shaders/basic.fs.glsl");
+    const towerFragmentShaderSource = await getFileContentsAsText("/shaders/basic.fs.glsl");
 
     // #️⃣ Configuracion base de WebGL;
 	const canvas = document.getElementById("webgl-canvas");
@@ -36,20 +38,38 @@ async function main() {
 
         // #️⃣ Descripcion de los objetos de la escena: seteamos su color, 
         //      inicializamos sus matrices, almacenamos su geometria en buffers, etc
-    const towerColor = [1, 1, 1]
+    const towerColor = [ 0.2, 0.2, 0.2 ]
+    const pisoColor = [ 0.0, 1.0, 0.0 ]
+    const esferaColor = [ 0, 0.66, 0.89 ]
     const towerModelMatrix = mat4.create()
+    const pisoModelMatrix = mat4.create()
+    const esferaModelMatrix = mat4.create()
 
     const towerVertexPositionBuffer = createVertexBuffer(gl, towerEiffelData.vertexPositions)
+    const pisoVertexPositionBuffer = createVertexBuffer(gl, pisoData.vertexPositions)
+    const esferaVertexPositionBuffer = createVertexBuffer(gl, esferaData.vertexPositions)
 
-    //const towerIndexBuffer   = createIndexBuffer(gl, towerEiffelData.indexLines)
-    //const towerIndexSize     = towerEiffelData.indexLines.length
+    const towerIndexBuffer   = createIndexBuffer(gl, towerEiffelData.indexLines)
+    const towerIndexSize     = towerEiffelData.indexLines.length
+    const towerDrawMode      = gl.LINES
     const towerIndexDataType = gl.UNSIGNED_SHORT
-    //const towerDrawMode      = gl.LINES
+    
 
     //para pintar los triangulos
-    const towerIndexBuffer   = createIndexBuffer(gl, towerEiffelData.indexTriangles)
-    const towerIndexSize = towerEiffelData.indexTriangles.length
-    const towerDrawMode      = gl.TRIANGLES
+    //const towerIndexBuffer   = createIndexBuffer(gl, towerEiffelData.indexTriangles)
+    //const towerIndexSize = towerEiffelData.indexTriangles.length
+    //const towerDrawMode      = gl.TRIANGLES
+    //const towerIndexDataType = gl.UNSIGNED_SHORT
+
+    const pisoIndexBuffer   = createIndexBuffer(gl, pisoData.indexTriangles)
+    const pisoIndexSize = pisoData.indexTriangles.length
+    const pisoDrawMode      = gl.TRIANGLES
+    const pisoIndexDataType = gl.UNSIGNED_SHORT
+
+    const esferaIndexBuffer   = createIndexBuffer(gl, esferaData.indexTriangles)
+    const esferaIndexSize = esferaData.indexTriangles.length
+    const esferaDrawMode      = gl.TRIANGLES
+    const esferaIndexDataType = gl.UNSIGNED_SHORT
 
     const towerVertexArray = gl.createVertexArray()
     gl.bindVertexArray(towerVertexArray)
@@ -57,8 +77,24 @@ async function main() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, towerIndexBuffer)
     gl.bindVertexArray(null)
 
+    const pisoVertexArray = gl.createVertexArray()
+    gl.bindVertexArray(pisoVertexArray)
+    addAttributeToBoundVertexArray(gl, vertexPositionLocation, pisoVertexPositionBuffer, 3)
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pisoIndexBuffer)
+    gl.bindVertexArray(null)
+
+    const esferaVertexArray = gl.createVertexArray()
+    gl.bindVertexArray(esferaVertexArray)
+    addAttributeToBoundVertexArray(gl, vertexPositionLocation, esferaVertexPositionBuffer, 3)
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, esferaIndexBuffer)
+    gl.bindVertexArray(null)
+
     // #️⃣ Posicion inicial de cada objeto
-    mat4.fromTranslation(towerModelMatrix, [ 0.0, 0.0, 0.0])
+    mat4.fromTranslation(towerModelMatrix, [ 8.0, 0.0, 0.0])
+    mat4.scale(towerModelMatrix,towerModelMatrix, [ 2.5, 2.5, 2.5 ])
+    mat4.fromTranslation(pisoModelMatrix, [ 0.0, 0.0, 0.0])
+    mat4.fromTranslation(esferaModelMatrix, [ 0.0, 0.0, 0.0])
+    mat4.scale(esferaModelMatrix,esferaModelMatrix, [ 50.0, 50.0, 50.0 ])
 
     // #️⃣ Establecemos el programa de shaders a usar
 
@@ -99,6 +135,32 @@ async function main() {
 
         // Lo dibujamos
         gl.drawElements(towerDrawMode, towerIndexSize, towerIndexDataType, 0)
+
+
+        // 🎨 Dibujando el piso
+        gl.uniformMatrix4fv(viewMatrixLocation, false, camera.viewMatrix)
+        // Seteamos valores de uniforms especificos al objeto
+        gl.uniformMatrix4fv(modelMatrixLocation, false, pisoModelMatrix)
+        gl.uniform3fv(colorLocation, pisoColor)
+
+        // Seteamos info de su geometria
+        gl.bindVertexArray(pisoVertexArray)
+
+        // Lo dibujamos
+        gl.drawElements(pisoDrawMode, pisoIndexSize, pisoIndexDataType, 0)
+
+
+        // 🎨 Dibujando la esfera
+        gl.uniformMatrix4fv(viewMatrixLocation, false, camera.viewMatrix)
+        // Seteamos valores de uniforms especificos al objeto
+        gl.uniformMatrix4fv(modelMatrixLocation, false, esferaModelMatrix)
+        gl.uniform3fv(colorLocation, esferaColor)
+
+        // Seteamos info de su geometria
+        gl.bindVertexArray(esferaVertexArray)
+
+        // Lo dibujamos
+        gl.drawElements(esferaDrawMode, esferaIndexSize, esferaIndexDataType, 0)
 
         // Solicitamos el proximo frame
         requestAnimationFrame(render)
