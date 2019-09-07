@@ -1,6 +1,7 @@
 import { mat4 } from "/libs/gl-matrix/index.js";
 import { getFileContentsAsText, createShaderProgram, createVertexBuffer, createIndexBuffer, addAttributeToBoundVertexArray } from "/libs/utils.js";
 import { Camera } from "/libs/gl-engine/Camera.js";
+import { FpsCamera, FpsCameraControls } from "/libs/gl-engine/index.js";
 import { CameraMouseControls } from "/libs/gl-engine/CameraMouseControls.js";
 import { parse } from "/libs/gl-engine/parsers/obj-parser.js";
 
@@ -21,9 +22,14 @@ async function main() {
     gl.enable(gl.DEPTH_TEST)
     
     // #️⃣ Creamos la camara y sus controles
+    //********************************************************************** 
+    //const camera = new Camera()
+    //const cameraMouseControls = new CameraMouseControls(camera, canvas)
+    //********************************************************************** 
+    
+    const camera = new FpsCamera();
+	const CameraControls = new FpsCameraControls(camera, canvas);
 
-    const camera = new Camera()
-    const cameraMouseControls = new CameraMouseControls(camera, canvas)
 
     // #️⃣ Creamos el programa de shaders y obtenemos la ubicacion de sus variables
 
@@ -90,7 +96,7 @@ async function main() {
     gl.bindVertexArray(null)
 
     // #️⃣ Posicion inicial de cada objeto
-    mat4.fromTranslation(towerModelMatrix, [ 8.0, 0.0, 0.0])
+    mat4.fromTranslation(towerModelMatrix, [ 0.0, 0.0, -10.0])
     mat4.scale(towerModelMatrix,towerModelMatrix, [ 2.5, 2.5, 2.5 ])
     mat4.fromTranslation(pisoModelMatrix, [ 0.0, 0.0, 0.0])
     mat4.fromTranslation(esferaModelMatrix, [ 0.0, 0.0, 0.0])
@@ -118,6 +124,9 @@ async function main() {
     requestAnimationFrame(render)
 
     function render() {
+        //Comandos de la camara.
+        CameraControls.move();
+
         // Limpiamos buffers de color y profundidad del canvas antes de empezar a dibujar los objetos de la escena
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
