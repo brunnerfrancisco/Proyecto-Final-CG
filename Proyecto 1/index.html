@@ -2,13 +2,68 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title> Dibujando varios objetos </title>
+        <title> Proyecto 1 - Brunner - Meneses </title>
         <link rel="stylesheet" type="text/css" href="styles.css">
+        
+
+
     </head>
     <body>
-        <canvas id="webgl-canvas" width="1000" height="600">
-            Browser not supported
-        </canvas>
-        <script type="module" src="index.js"></script>
+        <table>
+            <td>  
+                    <table>
+                            <canvas id="webgl-canvas" width="950" height="600"></canvas>   
+                    </table>
+            </td>
+            <td>
+                <table border='2'>
+                            <tr>Camaras.</tr>
+                             <tr>
+                                <td>Seleccionar tipo.</td>
+                                <td>
+                                    <select id="camara_seleccionada">
+                                        <option value=0>Manual</option>
+                                        <option value=1>Automatica</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Phi</td>
+                                <td><input type="range" id="range_phi" step="1" min="0" max="90" value="45"></td>
+                            </tr>
+                            <tr>
+                                <td>Zoom</td>
+                                <td><input type="range" id="range_zoom" step="0.1" min="3" max="110" value="10"></td>
+                            </tr>
+                            <tr>
+                                <td>Theta</td>
+                                <td><input type="range" id="range_theta" step="1" min="0" max="360" value="45"></td>
+                            </tr>
+                          
+                </table>
+                <table>
+                        <tr>_________________________</tr>
+                        <tr><td>Objetos.</td></tr>
+                        <tr>
+                                <td>Rotar Torre</td>
+                                <td><input type="range" id="range_torre" step="1" min="0" max="360" value="0"></td>
+                            </tr>
+                            <tr>
+                                <td>Rotar Dirigible</td>
+                                <td><input type="range" id='range_dirigible' step="1" min="0" max="360" value="0"></td>
+                            </tr>
+                            <tr>
+                                <td>Orbitar Dirigible</td>
+                                <td><input type="range" id='range_orbita' step="0.01" min="0" max="360" value="0"></td>
+                            </tr>
+                </table>
+                
+            </td>
+            
+       </table>         
+       
+
+       <script type="module" src="index.js"></script>
     </body>
+
 </html>
