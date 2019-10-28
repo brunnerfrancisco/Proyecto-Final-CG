@@ -2,7 +2,7 @@ import { mat4, quat } from "/libs/gl-matrix/index.js"
 import { toRadians, limitToRange } from "/libs/utils.js"
 
 export class SphericalCamera {
-    constructor(radius = 5, theta = -45, phi = 60) {
+    constructor(radius = 5, theta = -40, phi = 60) {
         this.defaultSphericalPosition = { radius: radius, theta: toRadians(theta), phi: toRadians(phi) }
         this.sphericalPosition = { radius: radius, theta: toRadians(theta), phi: toRadians(phi) }
 

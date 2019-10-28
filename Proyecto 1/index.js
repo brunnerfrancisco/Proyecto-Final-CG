@@ -1,321 +1,536 @@
-import { mat4 } from "/libs/gl-matrix/index.js";
-import { getFileContentsAsText, createShaderProgram, createVertexBuffer, createIndexBuffer, addAttributeToBoundVertexArray } from "/libs/utils.js";
-import { SphericalCamera, SphericalCameraMouseControls } from "/libs/gl-engine/index.js";
+import { mat4, vec4 } from "/libs/gl-matrix/index.js";
+import { getFileContentsAsText, loadImage } from "/libs/utils.js";
+import { FpsCamera, FpsCameraControls, Geometry, Material, SceneLight, Program, SceneObject } from "/libs/gl-engine/index.js";
 import { parse } from "/libs/gl-engine/parsers/obj-parser.js";
 
 main();
 
 async function main() {
-    var angulo_viejo_rotacion = 0
-    var automaticCamera = false
+	var angulo_viejo_rotacion = 0
+	var automaticCamera = false
+	var lastDrawTime = 0 
 
-    const towerEiffelData = await parse("/models/torre.obj");
-    const pisoData = await parse("/models/piso.obj");
-    const esferaData = await parse("/models/esfera.obj");
-    const dirigibleData = await parse("/models/dirigible.obj");
+	// #️⃣ Configuracion base de WebGL;
+	const canvas = document.getElementById("webgl-canvas")
+	const gl = canvas.getContext("webgl2")
+	gl.clearColor(0, 0, 0, 1)
+	gl.enable(gl.DEPTH_TEST)
+	
+	// #️⃣ Creamos las camaras y sus controles
+	var camera = new FpsCamera()
+	var CameraControls = new FpsCameraControls(camera, canvas)
+	camera.setPosition(0.0, 1.0, 30.0)
 
-    const towerVertexShaderSource = await getFileContentsAsText("/shaders/basic.vs.glsl");
-    const towerFragmentShaderSource = await getFileContentsAsText("/shaders/basic.fs.glsl");
+	//Texturas
+	const torreTextureColor = gl.createTexture()
 
-    // #️⃣ Configuracion base de WebGL;
-	const canvas = document.getElementById("webgl-canvas");
-    const gl = canvas.getContext("webgl2");
-    gl.clearColor(0, 0, 0, 1)
-    gl.enable(gl.DEPTH_TEST)
-    
-    //Prueba de obtencion de modulo
-    const rotartorre = document.getElementById("range_torre")
-    rotartorre.addEventListener("input",rotar_torre)
+	const plazaTextureColor = gl.createTexture()
 
-    const rotardirigible = document.getElementById("range_dirigible")
-    rotardirigible.addEventListener("input",rotar_dirigible)
+	const maderaTextureColor = gl.createTexture()
 
-    const rotarorbita = document.getElementById("range_orbita")
-    rotarorbita.addEventListener("input",rotar_orbita)
+	const edificioATextureColor = gl.createTexture()
 
-    const phiCamara = document.getElementById("range_phi")
-    phiCamara.addEventListener("input",change_phi)
+	const edificioBTextureColor = gl.createTexture()
 
-    const zoomCamara = document.getElementById("range_zoom")
-    zoomCamara.addEventListener("input",zoom)
-    
-    const thetaCamara = document.getElementById("range_theta")
-    thetaCamara.addEventListener("input",theta)
+	armarTextura(torreTextureColor, await loadImage("/textures/rust.jpg"))
 
-    const selectedCamera = document.getElementById("camara_seleccionada")
-    selectedCamera.addEventListener("input",selectCamera)
+	armarTextura(plazaTextureColor, await loadImage("/textures/cesped.jpg"))
 
-    // #️⃣ Creamos las camaras y sus controles
-    //********************************************************************** 
-    var camera = new SphericalCamera()
-    var CameraControls = new SphericalCameraMouseControls(camera, canvas)
-    camera.radius= 30;
-    
-    //camera = new FpsCamera();
-    //CameraControls = new FpsCameraControls(camera, canvas);
-    //********************************************************************** 
-    
-    // #️⃣ Elijo como predeterminada la camara fpss
-    //********************************************************************** 
-    //camera = camerafps;
-	//CameraControls = controlesfps;
+	armarTextura(maderaTextureColor, await loadImage("/textures/madera.jpg"))
 
+	armarTextura(edificioATextureColor, await loadImage("/textures/edificioa.jpg"))
+	
+	armarTextura(edificioBTextureColor, await loadImage("/textures/edificiob.jpg"))
 
-    // #️⃣ Creamos el programa de shaders y obtenemos la ubicacion de sus variables
+	// Cargamos los obj
+	const torreGeometryData = await parse("/models/torre_nuevo.obj")
+	const plazaGeometryData = await parse("/models/plaza_nuevo.obj")
+	const edificioaGeometryData = await parse("/models/edificioa_nuevo.obj")
+	const edificiobGeometryData = await parse("/models/edificiob_nuevo.obj")
+	const edificiocGeometryData = await parse("/models/edificioc_nuevo.obj")
+	const bancosGeometryData = await parse("/models/banco_nuevo.obj")
+	const faroGeometryData = await parse("/models/faro.obj")
+	const dirigibleGeometryData = await parse("/models/dirigible_nuevo.obj")
 
-    const program = createShaderProgram(gl, towerVertexShaderSource, towerFragmentShaderSource)
+	// Cargamos los Shaders
+	const textureVertexShaderSource = await getFileContentsAsText("/shaders/texture.vs.glsl")
+	const textureFragmentShaderSource = await getFileContentsAsText("/shaders/texture.fs.glsl")
 
-    const modelMatrixLocation      = gl.getUniformLocation(program, "modelMatrix")
-    const viewMatrixLocation       = gl.getUniformLocation(program, "viewMatrix")
-    const projectionMatrixLocation = gl.getUniformLocation(program, "projectionMatrix")
-    const colorLocation            = gl.getUniformLocation(program, "color")
+	const objectsVertexShaderSource = await getFileContentsAsText("/shaders/shaderB.vs.glsl")
+	const objectsFragmentShaderSource = await getFileContentsAsText("/shaders/shaderB.fs.glsl")
 
-    const vertexPositionLocation = gl.getAttribLocation(program, "vertexPosition")
+	// #️⃣ Programas
+	const programTexture = new Program(gl, textureVertexShaderSource, textureFragmentShaderSource)
+	const programObjects = new Program(gl, objectsVertexShaderSource, objectsFragmentShaderSource)
 
-        // #️⃣ Descripcion de los objetos de la escena: seteamos su color, 
-        //      inicializamos sus matrices, almacenamos su geometria en buffers, etc
-    const towerColor = [ 0.205, 0.127, 0.050 ]
-    const pisoColor = [ 0.0, 0.343, 0.057 ]
-    const esferaColor = [ 0, 0.66, 1 ]
-    const dirigibleColor = [ 0.5, 0.5, 0.5 ]
+	// Geometrias
+	const torreGeometry = new Geometry(gl, torreGeometryData)
+	const plazaGeometry = new Geometry(gl, plazaGeometryData)
+	const edificioaGeometry = new Geometry(gl, edificioaGeometryData)
+	const edificiobGeometry = new Geometry(gl, edificiobGeometryData)
+	const edificiocGeometry = new Geometry(gl, edificiocGeometryData)
+	const bancosGeometry = new Geometry(gl, bancosGeometryData)
+	const faroGeometry = new Geometry(gl, faroGeometryData)
+	const dirigibleGeometry = new Geometry(gl, dirigibleGeometryData)
 
-    var towerModelMatrix = mat4.create()
-    var pisoModelMatrix = mat4.create()
-    var esferaModelMatrix = mat4.create()
-    var dirigibleModelMatrix = mat4.create()
+	// Materiales
+	const torreMaterial = new Material(programTexture, true, true, { ka: [0.30, 0.30, 0.30], kd: [1.0, 0.0, 0.0], ks: [0.4, 0.4, 0.4], sigma: 50, CoefEspec:0.5, texture0: 0 })
+	const plazaMaterial = new Material(programTexture, true, true, { ka: [0.30, 0.30, 0.30], kd: [1.0, 0.0, 0.0], ks: [0.4, 0.4, 0.4], sigma: 50, CoefEspec:0.5, texture0: 0 })
+	const edificioaMaterial = new Material(programTexture, true, true, { texture0: 0 })
+	const edificiobMaterial = new Material(programTexture, true, true, { texture0: 0 })
+	const edificiocMaterial = new Material(programObjects, true, false, { texture0: 0 })
+	const farolesMaterial = new Material(programObjects, true, false, { texture0: 0 })
+	const bancosMaterial = new Material(programTexture, true, true, { texture0: 0 })
+	const dirigibleMaterial = new Material(programObjects, true, false, { texture0: 0 })
 
-    const towerVertexPositionBuffer = createVertexBuffer(gl, towerEiffelData.vertexPositions)
-    const pisoVertexPositionBuffer = createVertexBuffer(gl, pisoData.vertexPositions)
-    const esferaVertexPositionBuffer = createVertexBuffer(gl, esferaData.vertexPositions)
-    const dirigibleVertexPositionBuffer = createVertexBuffer(gl, dirigibleData.vertexPositions)
-  
+	// #️⃣ Descripcion de los objetos de la escena:
+	const torreObjeto = new SceneObject(gl, torreGeometry, torreMaterial, [torreTextureColor])
+	torreObjeto.setPosition(0.0, 0.0, 0.0)
+	torreObjeto.updateModelMatrix()
 
-    const towerIndexBuffer   = createIndexBuffer(gl, towerEiffelData.indexLines)
-    const towerIndexSize     = towerEiffelData.indexLines.length
-    const towerDrawMode      = gl.LINES
-    const towerIndexDataType = gl.UNSIGNED_SHORT
+	const plazaObjeto = new SceneObject(gl, plazaGeometry, plazaMaterial, [plazaTextureColor])
+	plazaObjeto.setPosition(0.0, 0.0, 30.0)
+	plazaObjeto.updateModelMatrix()
+	
+	const dirigibleObjeto = new SceneObject(gl, dirigibleGeometry, dirigibleMaterial, [plazaTextureColor])
+	dirigibleObjeto.rotateY(-90)
+	dirigibleObjeto.setPosition(0.0, 25.0, 30.0)
+	dirigibleObjeto.updateModelMatrix()
 
-    const dirigibleIndexBuffer   = createIndexBuffer(gl, dirigibleData.indexTriangles)
-    const dirigibleIndexSize     = dirigibleData.indexTriangles.length
-    const dirigibleDrawMode      = gl.TRIANGLES
-    const dirigibleIndexDataType = gl.UNSIGNED_SHORT
-    
+	const sceneObjects = [torreObjeto, plazaObjeto , dirigibleObjeto ]
+	
+	const edificios = []
+	const faroles = []
+	const bancos = []
 
-    //para pintar los triangulos
-    //const towerIndexBuffer   = createIndexBuffer(gl, towerEiffelData.indexTriangles)
-    //const towerIndexSize = towerEiffelData.indexTriangles.length
-    //const towerDrawMode      = gl.TRIANGLES
-    //const towerIndexDataType = gl.UNSIGNED_SHORT
+	CrearEdificios()
+	CrearFaroles()
+	CrearBancos()
 
-    const pisoIndexBuffer   = createIndexBuffer(gl, pisoData.indexTriangles)
-    const pisoIndexSize = pisoData.indexTriangles.length
-    const pisoDrawMode      = gl.TRIANGLES
-    const pisoIndexDataType = gl.UNSIGNED_SHORT
+	// Seteamos la luz SceneLight(position,color,spot_direction,spot_cutoff,model)
+	const light = new SceneLight([0.0, 100.0, 30.0, 0.0], [1.0, 1.0, 1.0], [0.0, -1.0, 0.0, 0.0], -1.0, null)
 
-    const esferaIndexBuffer   = createIndexBuffer(gl, esferaData.indexTriangles)
-    const esferaIndexSize = esferaData.indexTriangles.length
-    const esferaDrawMode      = gl.TRIANGLES
-    const esferaIndexDataType = gl.UNSIGNED_SHORT
+	var sceneLights = [light]
 
-    const towerVertexArray = gl.createVertexArray()
-    gl.bindVertexArray(towerVertexArray)
-    addAttributeToBoundVertexArray(gl, vertexPositionLocation, towerVertexPositionBuffer, 3)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, towerIndexBuffer)
-    gl.bindVertexArray(null)
+	gl.enable(gl.CULL_FACE)
 
-    const pisoVertexArray = gl.createVertexArray()
-    gl.bindVertexArray(pisoVertexArray)
-    addAttributeToBoundVertexArray(gl, vertexPositionLocation, pisoVertexPositionBuffer, 3)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pisoIndexBuffer)
-    gl.bindVertexArray(null)
+	requestAnimationFrame(render)
+	
+	function render(now) {
+		//Comandos de la camara.
+		CameraControls.move()
+		// Limpiamos buffers de color y profundidad del canvas antes de empezar a dibujar los objetos de la escena
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		
+		drawSceneAsUsual()
+		
+		lastDrawTime = now
+		requestAnimationFrame(render)
+	}
 
-    const esferaVertexArray = gl.createVertexArray()
-    gl.bindVertexArray(esferaVertexArray)
-    addAttributeToBoundVertexArray(gl, vertexPositionLocation, esferaVertexPositionBuffer, 3)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, esferaIndexBuffer)
-    gl.bindVertexArray(null)
+	var lala=true
 
-    const dirigibleVertexArray = gl.createVertexArray()
-    gl.bindVertexArray(dirigibleVertexArray)
-    addAttributeToBoundVertexArray(gl, vertexPositionLocation, dirigibleVertexPositionBuffer, 3)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dirigibleIndexBuffer)
-    gl.bindVertexArray(null)
-
-    // #️⃣ Posicion inicial de cada objeto
-
-    mat4.fromTranslation(towerModelMatrix, [ 0.0, 0.0, 0.0])
-    mat4.fromTranslation(pisoModelMatrix, [ 0.0, 0.0, 0.0])
-    mat4.scale(pisoModelMatrix,pisoModelMatrix, [ 50.0, 50.0, 50.0 ])
-    mat4.fromTranslation(esferaModelMatrix, [ 0.0, 0.0, 0.0])
-    mat4.scale(esferaModelMatrix,esferaModelMatrix, [ 50.0, 50.0, 50.0 ])
-    mat4.fromTranslation(dirigibleModelMatrix, [ 10.0, 10.0, 0.0])
-   
-   
-
-    // #️⃣ Establecemos el programa de shaders a usar
-
-    gl.useProgram(program)
-
-    /* 📝
-     Tener en cuenta que se esta pudiendo setear el programa afuera del render-loop
-     solo porque vamos a estar usando el mismo para todos los objetos de la escena
-     */
-
-    // #️⃣ Seteamos los valores de los uniforms que sabemos que permaneceran constantes
-
-    gl.uniformMatrix4fv(projectionMatrixLocation, false, camera.projectionMatrix)
-
-    /* 📝
-     Solo se pueden setear si se tiene algun programa en uso (via gl.useProgram...)
-     */
-
-    // #️⃣ Iniciamos el render-loop 🎬
-    const rotationSpeed = 45    // 30º por segundo (acordarse de pasar a radianes antes de usar)
-    let lastDrawTime = 0        // tiempo en el que se dibujo el ultimo frame
-    requestAnimationFrame(render)
-
-    function render(now) {
-        //Comandos de la camara.
-      //   CameraControls.move();
-
-        // Limpiamos buffers de color y profundidad del canvas antes de empezar a dibujar los objetos de la escena
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-        // Actualizamos los uniforms comunes a todos los objetos de la escena
-        gl.uniformMatrix4fv(viewMatrixLocation, false, camera.viewMatrix)
-
-       
-        // 🎨 Dibujando la torre
-
-        // Seteamos valores de uniforms especificos al objeto
-        gl.uniformMatrix4fv(modelMatrixLocation, false, towerModelMatrix)
-        gl.uniform3fv(colorLocation, towerColor)
-
-        // Seteamos info de su geometria
-        gl.bindVertexArray(towerVertexArray)
-
-        // Lo dibujamos
-        gl.drawElements(towerDrawMode, towerIndexSize, towerIndexDataType, 0)
+	function drawSceneAsUsual() {
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 
 
-        // 🎨 Dibujando el piso
-        gl.uniformMatrix4fv(viewMatrixLocation, false, camera.viewMatrix)
-        // Seteamos valores de uniforms especificos al objeto
-        gl.uniformMatrix4fv(modelMatrixLocation, false, pisoModelMatrix)
-        gl.uniform3fv(colorLocation, pisoColor)
+		// Dibujamos los objetos de la escena;
+		for (let object of sceneObjects) {
+			
+			
+			if (object.material.program==programTexture){
+				mat4.multiply(object.modelViewMatrix, camera.viewMatrix, object.modelMatrix)
+				mat4.invert(object.normalMatrix, object.modelViewMatrix)
+				mat4.transpose(object.normalMatrix, object.normalMatrix)
 
-        // Seteamos info de su geometria
-        gl.bindVertexArray(pisoVertexArray)
+				// Seteamos el programa a usar;
+				object.material.program.use()
 
-        // Lo dibujamos
-        gl.drawElements(pisoDrawMode, pisoIndexSize, pisoIndexDataType, 0)
+				// Actualizamos los uniforms a usar ( provenientes de la camara, el objeto, material y fuentes de luz )
+				object.material.program.setUniformValue("viewMatrix", camera.viewMatrix)
+				object.material.program.setUniformValue("projectionMatrix", camera.projectionMatrix)
+				object.material.program.setUniformValue("modelMatrix", object.modelMatrix)
+				object.material.program.setUniformValue("modelViewMatrix", object.modelViewMatrix)
+				object.material.program.setUniformValue("normalMatrix", object.normalMatrix)
+				
+				for (let name in object.material.properties) {
+					const value = object.material.properties[name]
+					object.material.program.setUniformValue("material." + name, value)
+					
+				}
+				
+				if (object.material.affectedByLight) {
+					let i = 0
+					for (let light of sceneLights) {
+						let lightPosEye = vec4.create();
+						vec4.transformMat4(lightPosEye, light.position, camera.viewMatrix);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].position", lightPosEye);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].color", light.color);
+						let spotDirEye = vec4.create();
+						vec4.transformMat4(spotDirEye, light.spot_direction, camera.viewMatrix);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].spot_direction", spotDirEye);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].spot_cutoff", light.spot_cutoff);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].linear_attenuation", light.linear_attenuation);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].quadratic_attenuation", light.quadratic_attenuation);
+						i++;
+					}
+				}
+				// Seteamos info de su geometria
+				object.vertexArray.bind()
 
+				//info de texturas
+				
+				if (object.material.textured) {
+					let i;
+					for (i = 0; i < object.textures.length; i++) {
+						gl.activeTexture(gl.TEXTURE0 + i)
+						gl.bindTexture(gl.TEXTURE_2D, object.textures[i])
+					}
+				}
+			}else{
+				mat4.multiply(object.modelViewMatrix, camera.viewMatrix, object.modelMatrix);
+				mat4.invert(object.normalMatrix, object.modelViewMatrix);
+				mat4.transpose(object.normalMatrix, object.normalMatrix);
+				// Seteamos el programa a usar;
+				object.material.program.use();
 
-        // 🎨 Dibujando la esfera
-        gl.uniformMatrix4fv(viewMatrixLocation, false, camera.viewMatrix)
-        // Seteamos valores de uniforms especificos al objeto
-        gl.uniformMatrix4fv(modelMatrixLocation, false, esferaModelMatrix)
-        gl.uniform3fv(colorLocation, esferaColor)
+				// Actualizamos los uniforms a usar ( provenientes de la camara, el objeto, material y fuentes de luz )
+				object.material.program.setUniformValue("viewMatrix", camera.viewMatrix);
+				object.material.program.setUniformValue("projectionMatrix", camera.projectionMatrix);
+				object.material.program.setUniformValue("modelMatrix", object.modelMatrix);
+				object.material.program.setUniformValue("modelViewMatrix", object.modelViewMatrix);
+				object.material.program.setUniformValue("normalMatrix", object.normalMatrix);
+				for (let name in object.material.properties) {
+					const value = object.material.properties[name];
+					object.material.program.setUniformValue("material." + name, value);
+				}
+				if (object.material.affectedByLight) {
+					let i = 0;
+					for (let light of sceneLights) {
+						let lightPosEye = vec4.create();
+						vec4.transformMat4(lightPosEye, light.position, camera.viewMatrix);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].position", lightPosEye);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].color", light.color);
+						let spotDirEye = vec4.create();
+						vec4.transformMat4(spotDirEye, light.spot_direction, camera.viewMatrix);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].spot_direction", spotDirEye);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].spot_cutoff", light.spot_cutoff);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].linear_attenuation", light.linear_attenuation);
+						object.material.program.setUniformValue("allLights[" + i.toString() + "].quadratic_attenuation", light.quadratic_attenuation);
+						i++;
+					};
+					object.material.program.setUniformValue("numLights", i);
+				}
 
-        // Seteamos info de su geometria
-        gl.bindVertexArray(esferaVertexArray)
+				// Seteamos info de su geometria
+				object.vertexArray.bind();
+				//info de texturas
+				
+				if (object.material.textured) {
+					let i;/* 
+					if (object.material.program == shadowProgram || object.material.program == shadowCookTorranceProgram || object.material.program == varianteBProgram) {
+						for (i = 0; i < object.textures.length; i++) {
+							gl.activeTexture(gl.TEXTURE1 + i);
+							gl.bindTexture(gl.TEXTURE_2D, object.textures[i]);
+						}
+					}
+					else { */
+						for (i = 0; i < object.textures.length; i++) {
+							gl.activeTexture(gl.TEXTURE0 + i);
+							gl.bindTexture(gl.TEXTURE_2D, object.textures[i]);
+						}
+					//}
+				} 
+			}
+			// Lo dibujamos
+			gl.drawElements(object.drawMode, object.indexBuffer.size, object.indexBuffer.dataType, 0)
+		}
+	}
 
-        // Lo dibujamos
-        gl.drawElements(esferaDrawMode, esferaIndexSize, esferaIndexDataType, 0)
-    
-        // 🎨 Dibujando el dirigible
-        gl.uniformMatrix4fv(viewMatrixLocation, false, camera.viewMatrix)
+	function armarTextura(texture, image) {
+		gl.activeTexture(gl.TEXTURE0)
+		gl.bindTexture(gl.TEXTURE_2D, texture)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
+		gl.generateMipmap(gl.TEXTURE_2D)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+		gl.bindTexture(gl.TEXTURE_2D, null)
+	}
 
-        // Seteamos valores de uniforms especificos al objeto
-        gl.uniformMatrix4fv(modelMatrixLocation, false, dirigibleModelMatrix)
-        gl.uniform3fv(colorLocation, dirigibleColor)
+	function CrearEdificios() {
+        //Edificios tipo A.
+		for (var i = 0; i < 24; i=i+3)
+        edificios[i] = new SceneObject(gl, edificioaGeometry, edificioaMaterial, [edificioATextureColor])
+        //Edificios tipo B.
+		for (var i = 1; i < 24; i=i+3)
+        edificios[i] = new SceneObject(gl, edificiobGeometry, edificiobMaterial, [edificioBTextureColor])
+        //Edificios tipo C.
+		for (var i = 2; i < 24; i=i+3)
+        edificios[i] = new SceneObject(gl, edificiocGeometry, edificiocMaterial, [plazaTextureColor])
 
-        // Seteamos info de su geometria
-        gl.bindVertexArray(dirigibleVertexArray)
+        // Seccion D (9 edificios).
+		edificios[0].rotateY(90);
+		edificios[0].setPosition(-15, 0.0, 15);
+        edificios[0].updateModelMatrix(); 
+		edificios[1].rotateY(90);
+		edificios[1].setPosition(-15, 0, 10);
+		edificios[1].updateModelMatrix();
+		edificios[2].rotateY(90);
+		edificios[2].setPosition(-15, 0, 0);
+		edificios[2].updateModelMatrix();
+		edificios[3].rotateY(90);
+		edificios[3].setPosition(-15, 0, 45);
+        edificios[3].updateModelMatrix();
+		edificios[4].rotateY(90);
+		edificios[4].setPosition(-15, 0, 40);
+		edificios[4].updateModelMatrix();
+		edificios[5].rotateY(90);
+		edificios[5].setPosition(-15, 0, 30);
+		edificios[5].updateModelMatrix();
+		edificios[6].rotateY(90);
+		edificios[6].setPosition(-15, 0, 75);
+		edificios[6].updateModelMatrix(); 
+		edificios[7].rotateY(90);
+		edificios[7].setPosition(-15, 0, 70);
+		edificios[7].updateModelMatrix();
+		edificios[8].rotateY(90);
+		edificios[8].setPosition(-15, 0, 60);
+		edificios[8].updateModelMatrix();
+		 
+		// Seccion A (9 edificios).
+		edificios[9].setPosition(15, 0.0, -15);
+		edificios[9].rotateY(-90);
+        edificios[9].updateModelMatrix(); 
+		edificios[10].setPosition(15, 0, -10);
+		edificios[10].rotateY(-90);
+		edificios[10].updateModelMatrix();
+		edificios[11].setPosition(15, 0, 0);
+		edificios[11].rotateY(-90);
+		edificios[11].updateModelMatrix();
+		edificios[12].setPosition(15, 0, 15);
+		edificios[12].rotateY(-90);
+        edificios[12].updateModelMatrix();
+		edificios[13].setPosition(15, 0, 20);
+		edificios[13].rotateY(-90);
+		edificios[13].updateModelMatrix();
+		edificios[14].setPosition(15, 0, 30);
+		edificios[14].rotateY(-90);
+        edificios[14].updateModelMatrix();
+		edificios[15].setPosition(15, 0, 45);
+		edificios[15].rotateY(-90);
+        edificios[15].updateModelMatrix(); 
+		edificios[16].setPosition(15, 0, 50);
+		edificios[16].rotateY(-90);
+        edificios[16].updateModelMatrix();
+		edificios[17].setPosition(15, 0, 60);
+		edificios[17].rotateY(-90);
+		edificios[17].updateModelMatrix();
+		
+		// Seccion W (5 edificios).
+		
+		edificios[18].setPosition(-15,0.0,-15);
+        edificios[18].updateModelMatrix(); 
+		edificios[19].setPosition(-10,0.0,-15);
+		edificios[19].updateModelMatrix();
+		edificios[20].setPosition(0,0.0,-15);
+		edificios[20].updateModelMatrix();
 
-        // Lo dibujamos
-        gl.drawElements(dirigibleDrawMode, dirigibleIndexSize, dirigibleIndexDataType, 0)
+		// Seccion S (3 edificios).
+		
+		edificios[21].setPosition(15,0.0,75);
+		edificios[21].rotateY(180);
+        edificios[21].updateModelMatrix(); 
+		edificios[22].setPosition(10,0.0,75);
+		edificios[22].rotateY(180);
+		edificios[22].updateModelMatrix();
+		edificios[23].setPosition(0,0.0,75);
+		edificios[23].rotateY(180);
+		edificios[23].updateModelMatrix();
+		
 
-        if(automaticCamera){
-            // Seteo los valores para hacer que la torre gire sobre su propio eje.
-            now *= 0.001                            // milisegundos -> segundos
-            const timeDelta = now - lastDrawTime    // tiempo entre este frame y el anterior
-            
-            let new_angle = timeDelta * rotationSpeed;
-
-            camera.arcHorizontally(new_angle * Math.PI / 180)
-
-        }
-        lastDrawTime = now;
-        requestAnimationFrame(render)
+        for (let i = 0; i < 24; i++) {
+			sceneObjects.push(edificios[i]);
+		}
     }
+	
+	
+    // Creacion de faroles.
+    function CrearFaroles() {
+		for (var i = 0; i < 12; i++)
+            faroles[i] = new SceneObject(gl, faroGeometry, farolesMaterial, [plazaTextureColor])
 
-   
-    function rotar_dirigible() {
+        faroles[ 0].setPosition(-9.5, 0, -9.5)
+		faroles[ 0].updateModelMatrix()
+        faroles[ 1].setPosition(-9.5, 0, 10.25)
+		faroles[ 1].updateModelMatrix()
+        faroles[ 2].setPosition(-9.5, 0, 30)
+		faroles[ 2].updateModelMatrix()
+        faroles[ 3].setPosition(-9.5, 0, 49.75)
+        faroles[ 3].updateModelMatrix()
+        faroles[ 4].setPosition(-9.5, 0, 69.5)
+		faroles[ 4].updateModelMatrix()
 
-	// actualización del ángulo actual ya que éste cambió al valor del slider
-            let angulo_nuevo = parseFloat(rotardirigible.value);
-            let i = angulo_viejo_rotacion;
-            if ( angulo_viejo_rotacion < angulo_nuevo ) {
-                // el ángulo nuevo es mayor, entonces se rota en sentido antihorario
-                while ( i <= angulo_nuevo ) {
-                    // ya que el slider no recorre todos los valores entre dos estados, se fuerza a que lo haga para obtener un recorrido suave
-                    mat4.rotateX(dirigibleModelMatrix,dirigibleModelMatrix,1*Math.PI/180);
-                    i++;
-                }
-            }
-            if ( angulo_viejo_rotacion > angulo_nuevo ) {
-                // el ángulo nuevo es menor, entonces se rota en sentido horario
-                while ( i >= angulo_nuevo ) {
-                    // ya que el slider no recorre todos los valores entre dos estados, se fuerza a que lo haga para obtener un recorrido suave
-                    mat4.rotateX(dirigibleModelMatrix,dirigibleModelMatrix,-1*Math.PI/180);
-                    i--;
-                }
-            }
-            // actualización del ángulo actual ya que éste cambió al valor del slider
-            angulo_viejo_rotacion = angulo_nuevo;
-
-    }
-
-    function rotar_orbita() {
-        let angulo = parseFloat(rotarorbita.value);
-        dirigibleModelMatrix = mat4.create()
-        // Y los aplicamos sobre su matriz de modelo
-        mat4.rotateY(dirigibleModelMatrix, dirigibleModelMatrix, angulo * Math.PI / 180 )
-        mat4.translate(dirigibleModelMatrix,dirigibleModelMatrix, [ 10.0, 10.0, 0.0])
+		faroles[ 5].setPosition(0.0, 0, -9.5)
+		faroles[ 5].updateModelMatrix()
+		faroles[ 6].setPosition(0.0, 0, 69.5)
+		faroles[ 6].updateModelMatrix()
+		
+		faroles[ 7].setPosition(9.5, 0, -9.5)
+		faroles[ 7].updateModelMatrix()
+		faroles[ 8].setPosition(9.5, 0, 10.25)
+        faroles[ 8].updateModelMatrix()
+        faroles[ 9].setPosition(9.5, 0, 30)
+        faroles[ 9].updateModelMatrix()
+        faroles[10].setPosition(9.5, 0, 49.75)
+        faroles[10].updateModelMatrix()
+        faroles[11].setPosition(9.5, 0, 69.5)
+        faroles[11].updateModelMatrix()
         
-    }
+        
+        for (let i = 0; i < 12; i++) {
+			sceneObjects.push(faroles[i]);
+		}
+        
+	}
+	
+    // Creacion de bancos.
+    function CrearBancos() {
+		for (var i = 0; i < 9; i++)
+            bancos[i] = new SceneObject(gl, bancosGeometry, bancosMaterial, [maderaTextureColor])
 
-    function rotar_torre() {
-        let angulo = parseFloat(rotartorre.value);
-        towerModelMatrix = mat4.create()
-        // Y los aplicamos sobre su matriz de modelo
-        mat4.rotateY(towerModelMatrix, towerModelMatrix, angulo * Math.PI / 180 )
-    }
+        // Seccion W (3 bancos). 
+		bancos[0].rotateY(90)
+		bancos[0].setPosition(-8, 0.0, 0.0)
+		bancos[0].updateModelMatrix()
+		bancos[1].rotateY(90)
+		bancos[1].setPosition(-8, 0.0, 19.75)
+		bancos[1].updateModelMatrix()
+		bancos[2].rotateY(90)
+		bancos[2].setPosition(-8, 0.0, 39.5)
+        bancos[2].updateModelMatrix()
+		bancos[3].rotateY(90)
+		bancos[3].setPosition(-8, 0.0, 59.25)
+		bancos[3].updateModelMatrix()
+		
+		bancos[4].rotateY(-90)
+		bancos[4].setPosition(8, 0.0, 0.0)
+		bancos[4].updateModelMatrix()
+		bancos[5].rotateY(-90)
+        bancos[5].setPosition(8, 0.0, 19.75)
+        bancos[5].updateModelMatrix()
+		bancos[6].rotateY(-90)
+		bancos[6].setPosition(8, 0.0, 39.5)
+        bancos[6].updateModelMatrix()
+		bancos[7].rotateY(-90)
+		bancos[7].setPosition(8, 0.0, 59.25)
+		bancos[7].updateModelMatrix()
+		
+		bancos[8].rotateY(180)
+		bancos[8].setPosition(0.0, 0.0, 65)
+        bancos[8].updateModelMatrix()
+        
+        for (let i = 0; i < 9; i++) {
+			sceneObjects.push(bancos[i]);
+		}
+        
+	}
 
-    function change_phi() {
-        let phiValue = parseFloat(phiCamara.value)
-        camera.phi = ( phiValue * Math.PI / 180 )
-    }
+	/**************************************************************************************************** */
+	
+	// Configuracion de Listeners
+	const rotartorre = document.getElementById("range_torre")
+	rotartorre.addEventListener("input", rotar_torre)
 
-    function zoom(){
-        let radius = parseFloat(zoomCamara.value)
-        camera.radius = radius
-    }
+	const rotardirigible = document.getElementById("range_dirigible")
+	rotardirigible.addEventListener("input", rotar_dirigible)
 
-    function theta(){
-        let thetaValue = parseFloat(thetaCamara.value)
-        camera.theta = ( thetaValue * Math.PI / 180 )
-    }
+	const rotarorbita = document.getElementById("range_orbita")
+	rotarorbita.addEventListener("input", rotar_orbita)
 
-    function selectCamera(){
-        if(selectedCamera.value == 1){
-            automaticCamera = true
-        }
-        else{
-            automaticCamera = false
-        }
-    }
+	const phiCamara = document.getElementById("range_phi")
+	phiCamara.addEventListener("input", change_phi)
+
+	const zoomCamara = document.getElementById("range_zoom")
+	zoomCamara.addEventListener("input", zoom)
+
+	const thetaCamara = document.getElementById("range_theta")
+	thetaCamara.addEventListener("input", theta)
+
+	const selectedCamera = document.getElementById("camara_seleccionada")
+	selectedCamera.addEventListener("input", selectCamera)
+
+	function rotar_orbita() {
+		let angulo = parseFloat(rotarorbita.value);
+		dirigibleModelMatrix = mat4.create()
+		// Y los aplicamos sobre su matriz de modelo
+		mat4.rotateY(dirigibleModelMatrix, dirigibleModelMatrix, angulo * Math.PI / 180)
+		mat4.translate(dirigibleModelMatrix, dirigibleModelMatrix, [10.0, 10.0, 0.0])
+
+	}
+	
+	function rotar_dirigible() {
+
+		// actualización del ángulo actual ya que éste cambió al valor del slider
+		let angulo_nuevo = parseFloat(rotardirigible.value);
+		let i = angulo_viejo_rotacion;
+		if (angulo_viejo_rotacion < angulo_nuevo) {
+			// el ángulo nuevo es mayor, entonces se rota en sentido antihorario
+			while (i <= angulo_nuevo) {
+				// ya que el slider no recorre todos los valores entre dos estados, se fuerza a que lo haga para obtener un recorrido suave
+				mat4.rotateX(dirigibleModelMatrix, dirigibleModelMatrix, 1 * Math.PI / 180);
+				i++;
+			}
+		}
+		if (angulo_viejo_rotacion > angulo_nuevo) {
+			// el ángulo nuevo es menor, entonces se rota en sentido horario
+			while (i >= angulo_nuevo) {
+				// ya que el slider no recorre todos los valores entre dos estados, se fuerza a que lo haga para obtener un recorrido suave
+				mat4.rotateX(dirigibleModelMatrix, dirigibleModelMatrix, -1 * Math.PI / 180);
+				i--;
+			}
+		}
+		// actualización del ángulo actual ya que éste cambió al valor del slider
+		angulo_viejo_rotacion = angulo_nuevo;
+
+	}
+
+
+	function rotar_torre() {
+		let angulo = parseFloat(rotartorre.value);
+		towerModelMatrix = mat4.create()
+		// Y los aplicamos sobre su matriz de modelo
+		mat4.rotateY(towerModelMatrix, towerModelMatrix, angulo * Math.PI / 180)
+	}
+
+	function change_phi() {
+		let phiValue = parseFloat(phiCamara.value)
+		camera.phi = (phiValue * Math.PI / 180)
+	}
+
+	function zoom() {
+		let radius = parseFloat(zoomCamara.value)
+		camera.radius = radius
+	}
+
+	function theta() {
+		let thetaValue = parseFloat(thetaCamara.value)
+		camera.theta = (thetaValue * Math.PI / 180)
+	}
+
+	function selectCamera() {
+		if (selectedCamera.value == 1) {
+			automaticCamera = true
+		}
+		else {
+			automaticCamera = false
+		}
+	}
+
 }
+
+
 
 
