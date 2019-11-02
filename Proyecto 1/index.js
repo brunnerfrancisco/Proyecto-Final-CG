@@ -1,5 +1,5 @@
 import { mat4, vec4 } from "/libs/gl-matrix/index.js";
-import { getFileContentsAsText, loadImage } from "/libs/utils.js";
+import { getFileContentsAsText, loadImage, toRadians } from "/libs/utils.js";
 import { FpsCamera, FpsCameraControls, Geometry, Material, SceneLight, Program, SceneObject } from "/libs/gl-engine/index.js";
 import { parse } from "/libs/gl-engine/parsers/obj-parser.js";
 
@@ -19,7 +19,7 @@ async function main() {
 	// #️⃣ Creamos las camaras y sus controles
 	var camera = new FpsCamera()
 	var CameraControls = new FpsCameraControls(camera, canvas)
-	camera.setPosition(0.0, 1.0, 30.0)
+	camera.setPosition(0.0, 1.8, 30.0)
 
 	//Texturas
 	const torreTextureColor = gl.createTexture()
@@ -32,9 +32,17 @@ async function main() {
 
 	const edificioBTextureColor = gl.createTexture()
 
-	armarTextura(torreTextureColor, await loadImage("/textures/rust.jpg"))
+	const edificioPruebaTexture = gl.createTexture()
 
-	armarTextura(plazaTextureColor, await loadImage("/textures/cesped.jpg"))
+	const edificioPruebaTextureBlue = gl.createTexture()
+
+	const edificioPruebaTextureNormal = gl.createTexture()
+
+	const skyTexture = gl.createTexture()
+
+	armarTextura(torreTextureColor, await loadImage("/textures/iron.jpg"))
+
+	armarTextura(plazaTextureColor, await loadImage("/textures/grass.jpg"))
 
 	armarTextura(maderaTextureColor, await loadImage("/textures/madera.jpg"))
 
@@ -42,15 +50,25 @@ async function main() {
 	
 	armarTextura(edificioBTextureColor, await loadImage("/textures/edificiob.jpg"))
 
+	armarTextura(edificioPruebaTexture,await loadImage('/textures/houseSF.png'))
+
+	armarTextura(edificioPruebaTextureBlue,await loadImage('/textures/houseSF_blue.png'))
+
+	armarTextura(edificioPruebaTextureNormal,await loadImage('/textures/houseSF_NM.png'))
+	
+	armarTextura(skyTexture,await loadImage('/textures/soleado.jpg'))
+
 	// Cargamos los obj
 	const torreGeometryData = await parse("/models/torre_nuevo.obj")
-	const plazaGeometryData = await parse("/models/plaza_nuevo.obj")
+	const plazaGeometryData = await parse("/models/plano.obj")
 	const edificioaGeometryData = await parse("/models/edificioa_nuevo.obj")
 	const edificiobGeometryData = await parse("/models/edificiob_nuevo.obj")
 	const edificiocGeometryData = await parse("/models/edificioc_nuevo.obj")
 	const bancosGeometryData = await parse("/models/banco_nuevo.obj")
 	const faroGeometryData = await parse("/models/faro.obj")
 	const dirigibleGeometryData = await parse("/models/dirigible_nuevo.obj")
+	const skyGeometryData = await parse( "/models/dome.obj" )
+	const edificioPruebaGeometryData = await parse( "/models/houseSF_nuevo.obj" )
 
 	// Cargamos los Shaders
 	const textureVertexShaderSource = await getFileContentsAsText("/shaders/texture.vs.glsl")
@@ -59,9 +77,25 @@ async function main() {
 	const objectsVertexShaderSource = await getFileContentsAsText("/shaders/shaderB.vs.glsl")
 	const objectsFragmentShaderSource = await getFileContentsAsText("/shaders/shaderB.fs.glsl")
 
+	const proceduralVertexShaderSource = await getFileContentsAsText( "/shaders/procedural.vs.glsl" )
+	const proceduralFragmentShaderSource = await getFileContentsAsText( "/shaders/procedural.fs.glsl" )
+	
+	const phongTVertexShaderSource = await getFileContentsAsText( '/shaders/phongT.vs.glsl' )
+	const phongTFragmentShaderSource = await getFileContentsAsText( '/shaders/phongT.fs.glsl' )
+
+	const TexturaVertexShaderSource = await getFileContentsAsText( '/shaders/Textura.vs.glsl' )
+	const TexturaFragmentShaderSource = await getFileContentsAsText( '/shaders/Textura.fs.glsl' )
+	
+	const cookTorranceTNVertexShaderSource = await getFileContentsAsText( '/shaders/cooktorranceTN.vs.glsl' )
+    const cookTorranceTNFragmentShaderSource = await getFileContentsAsText( '/shaders/cooktorranceTN.fs.glsl' )
+
 	// #️⃣ Programas
 	const programTexture = new Program(gl, textureVertexShaderSource, textureFragmentShaderSource)
 	const programObjects = new Program(gl, objectsVertexShaderSource, objectsFragmentShaderSource)
+	const proceduralProgram = new Program( gl, proceduralVertexShaderSource, proceduralFragmentShaderSource )
+	const phongTProgram = new Program( gl, phongTVertexShaderSource, phongTFragmentShaderSource )
+	const TexturaProgram = new Program( gl, TexturaVertexShaderSource, TexturaFragmentShaderSource )
+	const cookTorranceTNProgram = new Program( gl, cookTorranceTNVertexShaderSource, cookTorranceTNFragmentShaderSource )
 
 	// Geometrias
 	const torreGeometry = new Geometry(gl, torreGeometryData)
@@ -72,16 +106,23 @@ async function main() {
 	const bancosGeometry = new Geometry(gl, bancosGeometryData)
 	const faroGeometry = new Geometry(gl, faroGeometryData)
 	const dirigibleGeometry = new Geometry(gl, dirigibleGeometryData)
+	const skyGeometry = new Geometry( gl, skyGeometryData )
+	const edificioPruebaGeometry = new Geometry( gl, edificioPruebaGeometryData )
 
 	// Materiales
-	const torreMaterial = new Material(programTexture, true, true, { ka: [0.30, 0.30, 0.30], kd: [1.0, 0.0, 0.0], ks: [0.4, 0.4, 0.4], sigma: 50, CoefEspec:0.5, texture0: 0 })
-	const plazaMaterial = new Material(programTexture, true, true, { ka: [0.30, 0.30, 0.30], kd: [1.0, 0.0, 0.0], ks: [0.4, 0.4, 0.4], sigma: 50, CoefEspec:0.5, texture0: 0 })
-	const edificioaMaterial = new Material(programTexture, true, true, { texture0: 0 })
-	const edificiobMaterial = new Material(programTexture, true, true, { texture0: 0 })
-	const edificiocMaterial = new Material(programObjects, true, false, { texture0: 0 })
+	const torreMaterial = new Material(phongTProgram, true, true, 
+		{ kd: [0.50754,0.50754,0.50754] ,ks: [0.508273,0.2,0.2], sigma: 51.2, CoefEspec:1.0, texture0: 0 })
+	const plazaMaterial = new Material( phongTProgram, true, true, { texture0: 0, shininess: 0.0} )
+	const edificioaMaterial = new Material(phongTProgram, true, true, { texture0: 0 })
+	const edificiobMaterial = new Material(phongTProgram, true, true, { texture0: 0 })
+	const edificiocMaterial = new Material(phongTProgram, true, true, { texture0: 0 })
 	const farolesMaterial = new Material(programObjects, true, false, { texture0: 0 })
-	const bancosMaterial = new Material(programTexture, true, true, { texture0: 0 })
+	const skyMaterial = new Material( TexturaProgram, false, true, { texture0: 0} )
 	const dirigibleMaterial = new Material(programObjects, true, false, { texture0: 0 })
+	const woodpileMaterial = new Material( proceduralProgram, true, false, 
+		{  kd: [0.52156862745,0.36862745098,0.25882352941], shininess: 1, resolution: [0.64,0.5]} )
+	const edfificioPruebaMaterial = new Material(cookTorranceTNProgram, true, true,
+		{ texture0: 0, texture1: 1, m: 0.3, f0: 0.99, sigma: 0.1 })
 
 	// #️⃣ Descripcion de los objetos de la escena:
 	const torreObjeto = new SceneObject(gl, torreGeometry, torreMaterial, [torreTextureColor])
@@ -97,20 +138,40 @@ async function main() {
 	dirigibleObjeto.setPosition(0.0, 25.0, 30.0)
 	dirigibleObjeto.updateModelMatrix()
 
-	const sceneObjects = [torreObjeto, plazaObjeto , dirigibleObjeto ]
+	const edificioPruebaObjeto = new SceneObject(gl, edificioPruebaGeometry, edfificioPruebaMaterial, 
+		[edificioPruebaTexture, edificioPruebaTextureNormal])
+	edificioPruebaObjeto.setPosition(0.0,0.0,15.0)
+	edificioPruebaObjeto.rotateY(-90)
+	edificioPruebaObjeto.updateModelMatrix()
+
+	const sky = new SceneObject( gl, skyGeometry, skyMaterial, [skyTexture] )
+
+	const sceneObjects = [torreObjeto, plazaObjeto , dirigibleObjeto, sky, edificioPruebaObjeto ]
 	
 	const edificios = []
+	const edificiosPositions = []
 	const faroles = []
+	const farolesPositions = []
 	const bancos = []
+	const bancosPositions = []
 
 	CrearEdificios()
 	CrearFaroles()
 	CrearBancos()
 
 	// Seteamos la luz SceneLight(position,color,spot_direction,spot_cutoff,model)
-	const light = new SceneLight([0.0, 100.0, 30.0, 0.0], [1.0, 1.0, 1.0], [0.0, -1.0, 0.0, 0.0], -1.0, null)
+	const lightDirectional = new SceneLight( [0.5, -1.0, -1.0, 0.0], [0.5*255/255,0.5*236/255,0.5*219/255], [0.5, -1.0, 0.0, 0.0], -1.0 )
+	//lightDirectional.position = [0.0, -1.0, 0.0, 0.0]
+    //lightDirectional.color = [0.01*210/255,0.01*223/255,0.01*255/255]
+	var sceneLights = [lightDirectional]
+	
+	const lightFaroles=[]
+	const lightFarolesPositions=[]
 
-	var sceneLights = [light]
+	CrearLucesFaroles()
+	
+
+	//sceneLights.push(light_faroles[0])
 
 	gl.enable(gl.CULL_FACE)
 
@@ -127,8 +188,6 @@ async function main() {
 		lastDrawTime = now
 		requestAnimationFrame(render)
 	}
-
-	var lala=true
 
 	function drawSceneAsUsual() {
 		gl.enable(gl.BLEND);
@@ -175,6 +234,7 @@ async function main() {
 						object.material.program.setUniformValue("allLights[" + i.toString() + "].quadratic_attenuation", light.quadratic_attenuation);
 						i++;
 					}
+					object.material.program.setUniformValue("numLights", i)
 				}
 				// Seteamos info de su geometria
 				object.vertexArray.bind()
@@ -261,186 +321,179 @@ async function main() {
 	}
 
 	function CrearEdificios() {
-        //Edificios tipo A.
-		for (var i = 0; i < 24; i=i+3)
-        edificios[i] = new SceneObject(gl, edificioaGeometry, edificioaMaterial, [edificioATextureColor])
-        //Edificios tipo B.
-		for (var i = 1; i < 24; i=i+3)
-        edificios[i] = new SceneObject(gl, edificiobGeometry, edificiobMaterial, [edificioBTextureColor])
-        //Edificios tipo C.
-		for (var i = 2; i < 24; i=i+3)
-        edificios[i] = new SceneObject(gl, edificiocGeometry, edificiocMaterial, [plazaTextureColor])
-
-        // Seccion D (9 edificios).
-		edificios[0].rotateY(90);
-		edificios[0].setPosition(-15, 0.0, 15);
-        edificios[0].updateModelMatrix(); 
-		edificios[1].rotateY(90);
-		edificios[1].setPosition(-15, 0, 10);
-		edificios[1].updateModelMatrix();
-		edificios[2].rotateY(90);
-		edificios[2].setPosition(-15, 0, 0);
-		edificios[2].updateModelMatrix();
-		edificios[3].rotateY(90);
-		edificios[3].setPosition(-15, 0, 45);
-        edificios[3].updateModelMatrix();
-		edificios[4].rotateY(90);
-		edificios[4].setPosition(-15, 0, 40);
-		edificios[4].updateModelMatrix();
-		edificios[5].rotateY(90);
-		edificios[5].setPosition(-15, 0, 30);
-		edificios[5].updateModelMatrix();
-		edificios[6].rotateY(90);
-		edificios[6].setPosition(-15, 0, 75);
-		edificios[6].updateModelMatrix(); 
-		edificios[7].rotateY(90);
-		edificios[7].setPosition(-15, 0, 70);
-		edificios[7].updateModelMatrix();
-		edificios[8].rotateY(90);
-		edificios[8].setPosition(-15, 0, 60);
-		edificios[8].updateModelMatrix();
+		// Seccion D (9 edificios). (90)
+		edificiosPositions.push([-15, 0.0, 15])
+        edificiosPositions.push([-15, 0.0, 10])
+		edificiosPositions.push([-15, 0.0,  0])
+		
+		edificiosPositions.push([-15, 0.0, 45])
+        edificiosPositions.push([-15, 0.0, 40])
+		edificiosPositions.push([-15, 0.0, 30])
+		
+		edificiosPositions.push([-15, 0.0, 75])
+		edificiosPositions.push([-15, 0.0, 70])
+		edificiosPositions.push([-15, 0.0, 60])
 		 
-		// Seccion A (9 edificios).
-		edificios[9].setPosition(15, 0.0, -15);
-		edificios[9].rotateY(-90);
-        edificios[9].updateModelMatrix(); 
-		edificios[10].setPosition(15, 0, -10);
-		edificios[10].rotateY(-90);
-		edificios[10].updateModelMatrix();
-		edificios[11].setPosition(15, 0, 0);
-		edificios[11].rotateY(-90);
-		edificios[11].updateModelMatrix();
-		edificios[12].setPosition(15, 0, 15);
-		edificios[12].rotateY(-90);
-        edificios[12].updateModelMatrix();
-		edificios[13].setPosition(15, 0, 20);
-		edificios[13].rotateY(-90);
-		edificios[13].updateModelMatrix();
-		edificios[14].setPosition(15, 0, 30);
-		edificios[14].rotateY(-90);
-        edificios[14].updateModelMatrix();
-		edificios[15].setPosition(15, 0, 45);
-		edificios[15].rotateY(-90);
-        edificios[15].updateModelMatrix(); 
-		edificios[16].setPosition(15, 0, 50);
-		edificios[16].rotateY(-90);
-        edificios[16].updateModelMatrix();
-		edificios[17].setPosition(15, 0, 60);
-		edificios[17].rotateY(-90);
-		edificios[17].updateModelMatrix();
-		
-		// Seccion W (5 edificios).
-		
-		edificios[18].setPosition(-15,0.0,-15);
-        edificios[18].updateModelMatrix(); 
-		edificios[19].setPosition(-10,0.0,-15);
-		edificios[19].updateModelMatrix();
-		edificios[20].setPosition(0,0.0,-15);
-		edificios[20].updateModelMatrix();
+		// Seccion A (9 edificios).(-90)
+		edificiosPositions.push([15, 0.0, -15])
+		edificiosPositions.push([15, 0.0, -10])
+		edificiosPositions.push([15, 0.0,   0])
 
-		// Seccion S (3 edificios).
+		edificiosPositions.push([15, 0.0,  15])
+		edificiosPositions.push([15, 0.0,  20])
+		edificiosPositions.push([15, 0.0,  30])
 		
-		edificios[21].setPosition(15,0.0,75);
-		edificios[21].rotateY(180);
-        edificios[21].updateModelMatrix(); 
-		edificios[22].setPosition(10,0.0,75);
-		edificios[22].rotateY(180);
-		edificios[22].updateModelMatrix();
-		edificios[23].setPosition(0,0.0,75);
-		edificios[23].rotateY(180);
-		edificios[23].updateModelMatrix();
+		edificiosPositions.push([15, 0.0,  45])
+		edificiosPositions.push([15, 0.0,  50])
+		edificiosPositions.push([15, 0.0,  60])
 		
+		// Seccion W (5 edificios). (180)
+		
+		edificiosPositions.push([15, 0.0, 75])
+		edificiosPositions.push([10, 0.0, 75])
+		edificiosPositions.push([ 0, 0.0, 75])
 
-        for (let i = 0; i < 24; i++) {
-			sceneObjects.push(edificios[i]);
+		// Seccion S (3 edificios). (0)
+		
+		edificiosPositions.push([-15, 0.0, -15])
+        edificiosPositions.push([-10, 0.0, -15])
+		edificiosPositions.push([  0, 0.0, -15])
+
+
+		for (var i = 0; i < 24; i=i+3){
+			edificios[i] = new SceneObject(gl, edificioaGeometry, edificioaMaterial, [edificioATextureColor])
+		
+			edificios[i+1] = new SceneObject(gl, edificiobGeometry, edificiobMaterial, [edificioBTextureColor])
+		
+			edificios[i+2] = new SceneObject(gl, edificiocGeometry, edificiocMaterial, [edificioBTextureColor])
+
+			if(i < 9){
+				edificios[i].rotateY(90)
+				edificios[i+1].rotateY(90)
+				edificios[i+2].rotateY(90)
+			}else if(i < 18){
+				edificios[i].rotateY(-90)
+				edificios[i+1].rotateY(-90)
+				edificios[i+2].rotateY(-90)
+			}else if(i < 21){
+				edificios[i].rotateY(180)
+				edificios[i+1].rotateY(180)
+				edificios[i+2].rotateY(180)
+			}
+
+			var x,y,z
+			x = edificiosPositions[i][0]
+			y = edificiosPositions[i][1]
+			z = edificiosPositions[i][2]
+			edificios[i].setPosition(x,y,z)
+			
+			x = edificiosPositions[i+1][0]
+			y = edificiosPositions[i+1][1]
+			z = edificiosPositions[i+1][2]
+			edificios[i+1].setPosition(x,y,z)
+			
+			x = edificiosPositions[i+2][0]
+			y = edificiosPositions[i+2][1]
+			z = edificiosPositions[i+2][2]
+			edificios[i+2].setPosition(x,y,z)
+
+			edificios[i].updateModelMatrix()
+			edificios[i+1].updateModelMatrix()
+			edificios[i+2].updateModelMatrix()
+			
+			sceneObjects.push(edificios[i])
+			sceneObjects.push(edificios[i+1])
+			sceneObjects.push(edificios[i+2])
 		}
     }
 	
 	
     // Creacion de faroles.
     function CrearFaroles() {
-		for (var i = 0; i < 12; i++)
-            faroles[i] = new SceneObject(gl, faroGeometry, farolesMaterial, [plazaTextureColor])
-
-        faroles[ 0].setPosition(-9.5, 0, -9.5)
-		faroles[ 0].updateModelMatrix()
-        faroles[ 1].setPosition(-9.5, 0, 10.25)
-		faroles[ 1].updateModelMatrix()
-        faroles[ 2].setPosition(-9.5, 0, 30)
-		faroles[ 2].updateModelMatrix()
-        faroles[ 3].setPosition(-9.5, 0, 49.75)
-        faroles[ 3].updateModelMatrix()
-        faroles[ 4].setPosition(-9.5, 0, 69.5)
-		faroles[ 4].updateModelMatrix()
-
-		faroles[ 5].setPosition(0.0, 0, -9.5)
-		faroles[ 5].updateModelMatrix()
-		faroles[ 6].setPosition(0.0, 0, 69.5)
-		faroles[ 6].updateModelMatrix()
 		
-		faroles[ 7].setPosition(9.5, 0, -9.5)
-		faroles[ 7].updateModelMatrix()
-		faroles[ 8].setPosition(9.5, 0, 10.25)
-        faroles[ 8].updateModelMatrix()
-        faroles[ 9].setPosition(9.5, 0, 30)
-        faroles[ 9].updateModelMatrix()
-        faroles[10].setPosition(9.5, 0, 49.75)
-        faroles[10].updateModelMatrix()
-        faroles[11].setPosition(9.5, 0, 69.5)
-        faroles[11].updateModelMatrix()
-        
-        
-        for (let i = 0; i < 12; i++) {
-			sceneObjects.push(faroles[i]);
+		farolesPositions.push([-9.5, 0.0, -9.5 ])
+		farolesPositions.push([-9.5, 0.0, 10.25])
+		farolesPositions.push([-9.5, 0.0, 30   ])
+		farolesPositions.push([-9.5, 0.0, 49.75])
+		farolesPositions.push([-9.5, 0.0, 69.5 ])
+		farolesPositions.push([ 0.0, 0.0, -9.5 ])
+		farolesPositions.push([ 0.0, 0.0, 69.5 ])
+		farolesPositions.push([ 9.5, 0.0, -9.5 ])
+		farolesPositions.push([ 9.5, 0.0, 10.25])
+		farolesPositions.push([ 9.5, 0.0, 30.0 ])
+		farolesPositions.push([ 9.5, 0.0, 49.75])
+		farolesPositions.push([ 9.5, 0.0, 69.5 ])
+		
+		for (var i = 0; i < 12; i++){
+			faroles[i] = new SceneObject(gl, faroGeometry, farolesMaterial, [plazaTextureColor])
+			var x = farolesPositions[i][0]
+			var y = farolesPositions[i][1]
+			var z = farolesPositions[i][2]
+			faroles[i].setPosition(x,y,z)
+			faroles[i].updateModelMatrix()
+			sceneObjects.push(faroles[i])
 		}
-        
 	}
 	
     // Creacion de bancos.
     function CrearBancos() {
-		for (var i = 0; i < 9; i++)
-            bancos[i] = new SceneObject(gl, bancosGeometry, bancosMaterial, [maderaTextureColor])
+		
+		bancosPositions.push([-8, 0.0, 0.0])
+		bancosPositions.push([-8, 0.0, 19.75])
+		bancosPositions.push([-8, 0.0, 39.5])
+		bancosPositions.push([-8, 0.0, 59.25])
+		bancosPositions.push([8, 0.0, 0.0])
+		bancosPositions.push([8, 0.0, 19.75])
+		bancosPositions.push([8, 0.0, 39.5])
+		bancosPositions.push([8, 0.0, 59.25])
+		bancosPositions.push([0.0, 0.0, 65])
+		
 
-        // Seccion W (3 bancos). 
-		bancos[0].rotateY(90)
-		bancos[0].setPosition(-8, 0.0, 0.0)
-		bancos[0].updateModelMatrix()
-		bancos[1].rotateY(90)
-		bancos[1].setPosition(-8, 0.0, 19.75)
-		bancos[1].updateModelMatrix()
-		bancos[2].rotateY(90)
-		bancos[2].setPosition(-8, 0.0, 39.5)
-        bancos[2].updateModelMatrix()
-		bancos[3].rotateY(90)
-		bancos[3].setPosition(-8, 0.0, 59.25)
-		bancos[3].updateModelMatrix()
-		
-		bancos[4].rotateY(-90)
-		bancos[4].setPosition(8, 0.0, 0.0)
-		bancos[4].updateModelMatrix()
-		bancos[5].rotateY(-90)
-        bancos[5].setPosition(8, 0.0, 19.75)
-        bancos[5].updateModelMatrix()
-		bancos[6].rotateY(-90)
-		bancos[6].setPosition(8, 0.0, 39.5)
-        bancos[6].updateModelMatrix()
-		bancos[7].rotateY(-90)
-		bancos[7].setPosition(8, 0.0, 59.25)
-		bancos[7].updateModelMatrix()
-		
-		bancos[8].rotateY(180)
-		bancos[8].setPosition(0.0, 0.0, 65)
-        bancos[8].updateModelMatrix()
-        
-        for (let i = 0; i < 9; i++) {
-			sceneObjects.push(bancos[i]);
+		for (var i = 0; i < 9; i++){
+			bancos[i] = new SceneObject(gl, bancosGeometry, woodpileMaterial, [])
+			if (i < 4){
+				bancos[i].rotateY(90)
+			}else if (i < 8){
+				bancos[i].rotateY(-90)
+			}else{
+				bancos[i].rotateY(180)
+			}
+			var x = bancosPositions[i][0]
+			var y = bancosPositions[i][1]
+			var z = bancosPositions[i][2]
+			bancos[i].setPosition(x,y,z)
+			bancos[i].updateModelMatrix()
+			sceneObjects.push(bancos[i])
 		}
-        
+	}
+
+	function CrearLucesFaroles(){
+		
+		lightFarolesPositions.push([-9.5, 2.2, -9.5 , 1.0])
+		lightFarolesPositions.push([-9.5, 2.2, 10.25, 1.0])
+		lightFarolesPositions.push([-9.5, 2.2, 30   , 1.0])
+		lightFarolesPositions.push([-9.5, 2.2, 49.75, 1.0])
+		lightFarolesPositions.push([-9.5, 2.2, 69.5 , 1.0])
+		lightFarolesPositions.push([ 0.0, 2.2, -9.5 , 1.0])
+		lightFarolesPositions.push([ 0.0, 2.2, 69.5 , 1.0])
+		lightFarolesPositions.push([ 9.5, 2.2, -9.5 , 1.0])
+		lightFarolesPositions.push([ 9.5, 2.2, 10.25, 1.0])
+		lightFarolesPositions.push([ 9.5, 2.2, 30.0 , 1.0])
+		lightFarolesPositions.push([ 9.5, 2.2, 49.75, 1.0])
+		lightFarolesPositions.push([ 9.5, 2.2, 69.5 , 1.0])
+
+		for( let i = 0; i < 12 ; i++ ){
+			lightFaroles[i] = new SceneLight(lightFarolesPositions[i],[255/255, 132/255, 0/255],[0.0, 1.0, 0.0, 0.0],-1.0/* Math.cos(toRadians(175)) */,null)
+			lightFaroles[i].linear_attenuation = 0.2
+			lightFaroles[i].quadratic_attenuation = 0.2
+			sceneLights.push(lightFaroles[i])
+		} 
 	}
 
 	/**************************************************************************************************** */
 	
 	// Configuracion de Listeners
+	/* 
 	const rotartorre = document.getElementById("range_torre")
 	rotartorre.addEventListener("input", rotar_torre)
 
@@ -528,7 +581,7 @@ async function main() {
 			automaticCamera = false
 		}
 	}
-
+ */
 }
 
 

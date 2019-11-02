@@ -45,7 +45,7 @@ export class FpsCameraControls {
         const leftClick = 1
         const middleClick = 2;
         this.actPos(event);
-        if (event.which === middleClick) {
+        if (event.which === leftClick) {
             this.middleDragging = true
         }
         if (event.which === leftClick) {
@@ -102,16 +102,18 @@ export class FpsCameraControls {
 
     keydownHandler(e) {//activa los movimientos segun la tecla apretada
         switch (e.keyCode) {
-            case (32): {
+            /* case (32): {
             this.leftClicked = !this.pickedObject;
                 this.leftDragging = this.pickedObject;
                 if (this.pickedObject != null) { this.pickedObject = null; }
                 break;
-            } //spacebar
+            } */ //spacebar
             case (65): { this.moveLeft = true; break; } //a
             case (68): { this.moveRight = true; break; } //d
             case (83): { this.moveBackward = true; break; } //s
             case (87): { this.moveForward = true; break; } //w
+            case (16): { this.moveDown = true; break; } //q
+            case (32): { this.moveUp = true; break; } //e
         }
     }
     keyupHandler(e) {//desactiva los movimientos segun la tecla soltada
@@ -120,10 +122,13 @@ export class FpsCameraControls {
             case (68): { this.moveRight = false; break; } //d
             case (83): { this.moveBackward = false; break; } //s
             case (87): { this.moveForward = false; break; } //w
+            case (16): { this.moveDown = false; break; } //q
+            case (32): { this.moveUp = false; break; } //e
         }
     }
     move() {//movemos la camara
         let x = 0.0;
+        let y = 0.0;
         let z = 0.0;
         if (this.moveRight) {
             x += 0.1;
@@ -137,7 +142,14 @@ export class FpsCameraControls {
         if (this.moveBackward) {
             z += -0.1;
         }
+        if (this.moveUp) {
+            y += 0.1;
+        }
+        if (this.moveDown) {
+            y += -0.1;
+        }
         this.camera.moveRight(x);
+        this.camera.moveUp(y);
         this.camera.moveForward(z);
 
         if (this.pickedObject != null) {//si tenemos un objeto pickeado, lo arrastramos junto a la camara

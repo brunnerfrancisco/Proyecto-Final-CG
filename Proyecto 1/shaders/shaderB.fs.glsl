@@ -66,9 +66,9 @@ void main () {
 
     vec3 outputColor = vec3(0.0);
     outputColor +=calcSombras(allLights[0],N,V) * calcLambert(allLights[0],color,N);
-    for(int i = 0; i < numLights; i++){
+    /* for(int i = 0; i < numLights; i++){
         outputColor += calcLambert(allLights[i],color,N);
-    }
+    } */
 
     fragmentColor = vec4(outputColor, 1);
 

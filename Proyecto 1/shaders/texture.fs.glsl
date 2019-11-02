@@ -114,7 +114,7 @@ void main () {
         outputColor += calculoTotalSpot(allLights[i],diffuseColorFromTexture,specularColorFromTexture,N,V);
     }
 
-    outputColor=mix(fogColor,outputColor,fogFactor);
+    //outputColor=mix(fogColor,outputColor,fogFactor);
 
     vec3 ambient = diffuseColorFromTexture * 0.3;
 

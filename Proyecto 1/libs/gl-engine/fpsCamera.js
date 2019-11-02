@@ -19,7 +19,7 @@ export class FpsCamera {
         this.fov    = toRadians(45)
         this.aspect = 1
         this.near   = 0.1
-        this.far    = 100
+        this.far    = 500
 
         this.onPositionChange = () => {} // funcion que se ejecuta ante cada cambio en la posicion de la camara (por defecto una "funcion vacia" o no-op)
 
@@ -114,6 +114,13 @@ export class FpsCamera {
         this.position[0] += this.right[0] * value
         this.position[1] += this.right[1] * value
         this.position[2] += this.right[2] * value
+        this.updateViewMatrix();
+    }
+
+    moveUp(value) {
+        this.position[0] += this.up[0] * value
+        this.position[1] += this.up[1] * value
+        this.position[2] += this.up[2] * value
         this.updateViewMatrix();
     }
 
