@@ -22,6 +22,10 @@ export class SceneObject {
         this.id = -1;
     }
 
+    setMaterial(material) {
+        this.pmaterial = material;
+    }
+
     setPosition(x, y, z) {
         this.position = [x, y, z]
     }

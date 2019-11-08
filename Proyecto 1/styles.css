@@ -14,9 +14,8 @@ body {
 }
 
 canvas {
-    float:left;
-    height: 100%;
-    width: 100%;
+    border-radius: 6px;
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
 }
 canvas:hover {
     cursor: grab;
@@ -24,28 +23,3 @@ canvas:hover {
 canvas:active {
     cursor: grabbing;
 }
-.controls {
-    position: absolute;
-    right: 0px;
-    margin: 10px;
-    bottom: 0;
-    /* padding: 4px 8px; */
-    font-family: sans-serif;
-    font-size: 13px;
-    background: rgb(30, 30, 30);
-    color: rgb(180, 180, 180);
-    border-radius: 3px;
-    opacity: 0.8;
-    border-collapse:collapse;
-}
-
-.info {
-    position: absolute;
-    margin: 10px;
-    left: 0px;
-    top: 0px;
-    color: rgb(180, 180, 180);
-    font-size: 15px;
-    font-family : Helvetica;
-}
-

@@ -1,4 +1,8 @@
 import { vec3 } from "/libs/gl-matrix/index.js";
+
+
+
+
 export class FpsCameraControls {
 
     constructor(camera, registerZone) {
@@ -126,14 +130,15 @@ export class FpsCameraControls {
             case (32): { this.moveUp = false; break; } //e
         }
     }
+
     move() {//movemos la camara
         let x = 0.0;
         let y = 0.0;
         let z = 0.0;
-        if (this.moveRight) {
+        if(this.moveRight){
             x += 0.1;
         }
-        if (this.moveLeft) {
+        if (this.moveLeft)  {
             x += -0.1;
         }
         if (this.moveForward) {

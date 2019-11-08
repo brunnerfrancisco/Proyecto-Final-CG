@@ -2,65 +2,47 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title> Proyecto 1 - Brunner - Meneses </title>
+        <title> Proyecto 2 - Brunner - Meneses </title>
         <link rel="stylesheet" type="text/css" href="styles.css">
-        
-
 
     </head>
     <body>
-        
-        <canvas id="webgl-canvas" width="950" height="600"></canvas>
-        <!-- 
         <table>
-            <td>
-                <table border='2'>
-                            <tr>Camaras.</tr>
-                             <tr>
-                                <td>Seleccionar tipo.</td>
-                                <td>
-                                    <select id="camara_seleccionada">
-                                        <option value=0>Manual</option>
-                                        <option value=1>Automatica</option>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Phi</td>
-                                <td><input type="range" id="range_phi" step="1" min="0" max="90" value="45"></td>
-                            </tr>
-                            <tr>
-                                <td>Zoom</td>
-                                <td><input type="range" id="range_zoom" step="0.1" min="3" max="110" value="10"></td>
-                            </tr>
-                            <tr>
-                                <td>Theta</td>
-                                <td><input type="range" id="range_theta" step="1" min="0" max="360" value="45"></td>
-                            </tr>
-                          
-                </table>
-                <table>
-                        <tr>_________________________</tr>
-                        <tr><td>Objetos.</td></tr>
+                <td>
+                        <div class="info" id="info">
+                            
+                            <output id="fps"></output>
+                        </div>
+                        <canvas id='webgl-canvas' width="800" height="600">
+                            Browser not supported
+                        </canvas>
+                </td>
+                <td>
+                        <div class="controls" id="controls">
+                    <table id="tabla" align='right' border='1'>
+                      
                         <tr>
-                                <td>Rotar Torre</td>
-                                <td><input type="range" id="range_torre" step="1" min="0" max="360" value="0"></td>
-                            </tr>
-                            <tr>
-                                <td>Rotar Dirigible</td>
-                                <td><input type="range" id='range_dirigible' step="1" min="0" max="360" value="0"></td>
-                            </tr>
-                            <tr>
-                                <td>Orbitar Dirigible</td>
-                                <td><input type="range" id='range_orbita' step="0.01" min="0" max="360" value="0"></td>
-                            </tr>
+                            <td> Ambiente. </td>
+                            <td align='center'>
+                                
+                                <button id="ambientenoche">NOCHE</button>
+                                <button id="ambienteatardecer">ATARDECER</button>
+                                <button id="ambientedia">DIA</button>
+            
+                            </td>
+                        </tr>
+                        <tr>
+                            <td align='center'> Faroles. </td>
+                            <td>
+                                <input type='range' step='0.05' id='sliderA1' min='0' max='2' value='0'>
+                            </td>
+                        </tr>
+        
                 </table>
-                
-            </td>
-        </table>
-        -->
-
-       <script type="module" src="index.js"></script>
+        </div>
+        <script type='module' src='index.js'></script>
+    </td>
+    </table>
     </body>
 
 </html>

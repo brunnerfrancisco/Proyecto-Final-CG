@@ -48,6 +48,16 @@ export class FpsCamera {
         return this.pitch
     }
 
+    getX() {
+        return this.position[0];
+    }
+    getY() {
+        return this.position[1];
+    }
+    getZ() {
+        return this.position[2];
+    }
+
     setPosition(x,y,z) {
         this.position[0] = x;
         this.position[1] = y;

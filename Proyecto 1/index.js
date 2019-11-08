@@ -10,6 +10,9 @@ async function main() {
 	var automaticCamera = false
 	var lastDrawTime = 0 
 
+	const colorAnt = [255/255, 132/255, 0/255];
+	const colorLuz = [0.5*255/255,0.5*236/255,0.5*219/255];
+
 	// #️⃣ Configuracion base de WebGL;
 	const canvas = document.getElementById("webgl-canvas")
 	const gl = canvas.getContext("webgl2")
@@ -24,7 +27,15 @@ async function main() {
 	//Texturas
 	const torreTextureColor = gl.createTexture()
 
+	const faroTextureColor = gl.createTexture()
+
 	const plazaTextureColor = gl.createTexture()
+
+	const asfaltoTextureColor = gl.createTexture()
+
+	const veredaTextureColor = gl.createTexture()
+
+	const vereda2TextureColor = gl.createTexture()
 
 	const maderaTextureColor = gl.createTexture()
 
@@ -40,9 +51,18 @@ async function main() {
 
 	const skyTexture = gl.createTexture()
 
-	armarTextura(torreTextureColor, await loadImage("/textures/iron.jpg"))
+	const focoTexture = gl.createTexture()
 
-	armarTextura(plazaTextureColor, await loadImage("/textures/grass.jpg"))
+	armarTextura(torreTextureColor, await loadImage("/textures/iron.jpg"))
+	armarTextura(faroTextureColor, await loadImage("/textures/iron.jpg"))
+
+	armarTextura(plazaTextureColor, await loadImage("/textures/baldosas.jpg"))
+
+	armarTextura(asfaltoTextureColor, await loadImage("/textures/asfalto.jpg"))
+
+	armarTextura(veredaTextureColor, await loadImage("/textures/baldosas.jpg"))
+
+	armarTextura(vereda2TextureColor, await loadImage("/textures/grass.jpg"))
 
 	armarTextura(maderaTextureColor, await loadImage("/textures/madera.jpg"))
 
@@ -56,11 +76,17 @@ async function main() {
 
 	armarTextura(edificioPruebaTextureNormal,await loadImage('/textures/houseSF_NM.png'))
 	
-	armarTextura(skyTexture,await loadImage('/textures/soleado.jpg'))
+	armarTextura(skyTexture,await loadImage('/textures/noche.jpg'))
+
+	armarTextura(focoTexture,await loadImage('/textures/glass.jpg'))
 
 	// Cargamos los obj
 	const torreGeometryData = await parse("/models/torre_nuevo.obj")
 	const plazaGeometryData = await parse("/models/plano.obj")
+	const asfaltoGeometryData = await parse("/models/plano6.obj")
+	const veredaGeometryData = await parse("/models/plano7.obj")
+	const vereda2GeometryData = await parse("/models/plano9.obj")
+
 	const edificioaGeometryData = await parse("/models/edificioa_nuevo.obj")
 	const edificiobGeometryData = await parse("/models/edificiob_nuevo.obj")
 	const edificiocGeometryData = await parse("/models/edificioc_nuevo.obj")
@@ -69,6 +95,7 @@ async function main() {
 	const dirigibleGeometryData = await parse("/models/dirigible_nuevo.obj")
 	const skyGeometryData = await parse( "/models/dome.obj" )
 	const edificioPruebaGeometryData = await parse( "/models/houseSF_nuevo.obj" )
+	const focoGeometryData = await parse( "/models/focon.obj")
 
 	// Cargamos los Shaders
 	const textureVertexShaderSource = await getFileContentsAsText("/shaders/texture.vs.glsl")
@@ -83,23 +110,34 @@ async function main() {
 	const phongTVertexShaderSource = await getFileContentsAsText( '/shaders/phongT.vs.glsl' )
 	const phongTFragmentShaderSource = await getFileContentsAsText( '/shaders/phongT.fs.glsl' )
 
+	const phongMVertexShaderSource = await getFileContentsAsText( '/shaders/phongM.vs.glsl' )
+	const phongMFragmentShaderSource = await getFileContentsAsText( '/shaders/phongM.fs.glsl' )
+
 	const TexturaVertexShaderSource = await getFileContentsAsText( '/shaders/Textura.vs.glsl' )
 	const TexturaFragmentShaderSource = await getFileContentsAsText( '/shaders/Textura.fs.glsl' )
 	
 	const cookTorranceTNVertexShaderSource = await getFileContentsAsText( '/shaders/cooktorranceTN.vs.glsl' )
-    const cookTorranceTNFragmentShaderSource = await getFileContentsAsText( '/shaders/cooktorranceTN.fs.glsl' )
+	const cookTorranceTNFragmentShaderSource = await getFileContentsAsText( '/shaders/cooktorranceTN.fs.glsl' )
+	
+	const cookTorranceVertexShaderSource = await getFileContentsAsText( '/shaders/cooktorrance.vs.glsl' )
+    const cookTorranceFragmentShaderSource = await getFileContentsAsText( '/shaders/cooktorrance.fs.glsl' )
 
 	// #️⃣ Programas
 	const programTexture = new Program(gl, textureVertexShaderSource, textureFragmentShaderSource)
 	const programObjects = new Program(gl, objectsVertexShaderSource, objectsFragmentShaderSource)
 	const proceduralProgram = new Program( gl, proceduralVertexShaderSource, proceduralFragmentShaderSource )
 	const phongTProgram = new Program( gl, phongTVertexShaderSource, phongTFragmentShaderSource )
+	const phongMProgram = new Program( gl, phongMVertexShaderSource, phongMFragmentShaderSource )
 	const TexturaProgram = new Program( gl, TexturaVertexShaderSource, TexturaFragmentShaderSource )
 	const cookTorranceTNProgram = new Program( gl, cookTorranceTNVertexShaderSource, cookTorranceTNFragmentShaderSource )
+	const cookTorranceProgram = new Program( gl, cookTorranceVertexShaderSource, cookTorranceFragmentShaderSource )
 
 	// Geometrias
 	const torreGeometry = new Geometry(gl, torreGeometryData)
 	const plazaGeometry = new Geometry(gl, plazaGeometryData)
+	const asfaltoGeometry = new Geometry(gl, asfaltoGeometryData)
+	const veredaGeometry = new Geometry(gl, veredaGeometryData)
+	const vereda2Geometry = new Geometry(gl, vereda2GeometryData)
 	const edificioaGeometry = new Geometry(gl, edificioaGeometryData)
 	const edificiobGeometry = new Geometry(gl, edificiobGeometryData)
 	const edificiocGeometry = new Geometry(gl, edificiocGeometryData)
@@ -108,21 +146,28 @@ async function main() {
 	const dirigibleGeometry = new Geometry(gl, dirigibleGeometryData)
 	const skyGeometry = new Geometry( gl, skyGeometryData )
 	const edificioPruebaGeometry = new Geometry( gl, edificioPruebaGeometryData )
+	const focoGeometry = new Geometry( gl, focoGeometryData )
 
 	// Materiales
-	const torreMaterial = new Material(phongTProgram, true, true, 
-		{ kd: [0.50754,0.50754,0.50754] ,ks: [0.508273,0.2,0.2], sigma: 51.2, CoefEspec:1.0, texture0: 0 })
+	const torreMaterial = new Material(cookTorranceProgram, true, false,
+		{ kd: [0.39,0.14,0.14] ,ks: [0.39,0.14,0.14], m: 0.05, f0: 0.5, sigma: 0.1 })
 	const plazaMaterial = new Material( phongTProgram, true, true, { texture0: 0, shininess: 0.0} )
+	const asfaltoMaterial = new Material( phongTProgram, true, true, { texture0: 0, shininess: 0.0} )
+	const veredaMaterial = new Material( phongTProgram, true, true, { texture0: 0, shininess: 0.0} )
+	const vereda2Material = new Material( phongTProgram, true, true, { texture0: 0, shininess: 0.0} )
 	const edificioaMaterial = new Material(phongTProgram, true, true, { texture0: 0 })
 	const edificiobMaterial = new Material(phongTProgram, true, true, { texture0: 0 })
 	const edificiocMaterial = new Material(phongTProgram, true, true, { texture0: 0 })
-	const farolesMaterial = new Material(programObjects, true, false, { texture0: 0 })
+	const farolesMaterial = new Material(phongTProgram, true, true, 
+		{ kd: [0.50754,0.50754,0.50754] ,ks: [0.508273,0.2,0.2], sigma: 51.2, CoefEspec:1.0, texture0: 0 })
 	const skyMaterial = new Material( TexturaProgram, false, true, { texture0: 0} )
 	const dirigibleMaterial = new Material(programObjects, true, false, { texture0: 0 })
 	const woodpileMaterial = new Material( proceduralProgram, true, false, 
 		{  kd: [0.52156862745,0.36862745098,0.25882352941], shininess: 1, resolution: [0.64,0.5]} )
 	const edfificioPruebaMaterial = new Material(cookTorranceTNProgram, true, true,
 		{ texture0: 0, texture1: 1, m: 0.3, f0: 0.99, sigma: 0.1 })
+
+	const focoMaterial = new Material( phongMProgram, true, false, { ka: [1.0,1.0,1.0], kd: [0.5,0.5,0.5] ,ks: [0.5,0.5,0.5], shininess: 11.22} )
 
 	// #️⃣ Descripcion de los objetos de la escena:
 	const torreObjeto = new SceneObject(gl, torreGeometry, torreMaterial, [torreTextureColor])
@@ -132,6 +177,17 @@ async function main() {
 	const plazaObjeto = new SceneObject(gl, plazaGeometry, plazaMaterial, [plazaTextureColor])
 	plazaObjeto.setPosition(0.0, 0.0, 30.0)
 	plazaObjeto.updateModelMatrix()
+
+	const asfaltoObjeto = new SceneObject(gl, asfaltoGeometry, asfaltoMaterial, [asfaltoTextureColor])
+	asfaltoObjeto.setPosition(0.0, 0.1, 30.0)
+	asfaltoObjeto.updateModelMatrix()
+
+	const veredaObjeto = new SceneObject(gl, veredaGeometry, veredaMaterial, [veredaTextureColor])
+	veredaObjeto.setPosition(0.0, 0.12, 30.0)
+	veredaObjeto.updateModelMatrix()
+	const vereda2Objeto = new SceneObject(gl, vereda2Geometry, vereda2Material, [vereda2TextureColor])
+	vereda2Objeto.setPosition(0.0, 0.123, 30.0)
+	vereda2Objeto.updateModelMatrix()
 	
 	const dirigibleObjeto = new SceneObject(gl, dirigibleGeometry, dirigibleMaterial, [plazaTextureColor])
 	dirigibleObjeto.rotateY(-90)
@@ -146,7 +202,7 @@ async function main() {
 
 	const sky = new SceneObject( gl, skyGeometry, skyMaterial, [skyTexture] )
 
-	const sceneObjects = [torreObjeto, plazaObjeto , dirigibleObjeto, sky, edificioPruebaObjeto ]
+	const sceneObjects = [torreObjeto, plazaObjeto, sky, asfaltoObjeto, veredaObjeto,vereda2Objeto /*edificioPruebaObjeto*/ ]
 	
 	const edificios = []
 	const edificiosPositions = []
@@ -154,6 +210,7 @@ async function main() {
 	const farolesPositions = []
 	const bancos = []
 	const bancosPositions = []
+	const focos = []
 
 	CrearEdificios()
 	CrearFaroles()
@@ -169,6 +226,39 @@ async function main() {
 	const lightFarolesPositions=[]
 
 	CrearLucesFaroles()
+	
+	const sliderA1 = document.getElementById("sliderA1");
+	
+	sliderA1.addEventListener("input", updateFaroles);
+	
+
+	ambientenoche.addEventListener("click", async () => {
+		
+		armarTextura(skyTexture,await loadImage('/textures/noche.jpg'))
+		for( let i = 0; i < 12 ; i++ ){
+			lightFaroles[i].color = [255/255, 132/255, 0/255]
+		} 
+		lightDirectional.color = [0.5*255/255,0.5*236/255,0.5*219/255] //5400k
+		lightDirectional.position = [0.0, -1.0, 0.0, 0.0]
+    })
+	ambienteatardecer.addEventListener("click", async () => {
+		
+		armarTextura(skyTexture,await loadImage('/textures/atardecer.jpg'))
+		for( let i = 0; i < 12 ; i++ ){
+			lightFaroles[i].color = [(0.5*255/255)/2,(0.5*177/255)/2,(0.5*110/255)/2]
+		} 
+		lightDirectional.color = [0.5*255/255,0.5*177/255,0.5*110/255] //3000k
+        lightDirectional.position = [0.5, -0.1, -1.0, 0.0]  
+    })
+	ambientedia.addEventListener("click", async () => {
+		
+		armarTextura(skyTexture,await loadImage('/textures/soleado.jpg'))
+		for( let i = 0; i < 12 ; i++ ){
+			lightFaroles[i].color = [0/255,0/255,0/255]
+		} 
+		lightDirectional.color = [0.5*255/255,0.5*236/255,0.5*219/255] //9000k;
+		lightDirectional.position = [0.5, -1.0, -1.0, 0.0]
+    })
 	
 
 	//sceneLights.push(light_faroles[0])
@@ -411,21 +501,21 @@ async function main() {
     // Creacion de faroles.
     function CrearFaroles() {
 		
-		farolesPositions.push([-9.5, 0.0, -9.5 ])
-		farolesPositions.push([-9.5, 0.0, 10.25])
-		farolesPositions.push([-9.5, 0.0, 30   ])
-		farolesPositions.push([-9.5, 0.0, 49.75])
-		farolesPositions.push([-9.5, 0.0, 69.5 ])
-		farolesPositions.push([ 0.0, 0.0, -9.5 ])
-		farolesPositions.push([ 0.0, 0.0, 69.5 ])
-		farolesPositions.push([ 9.5, 0.0, -9.5 ])
-		farolesPositions.push([ 9.5, 0.0, 10.25])
-		farolesPositions.push([ 9.5, 0.0, 30.0 ])
-		farolesPositions.push([ 9.5, 0.0, 49.75])
-		farolesPositions.push([ 9.5, 0.0, 69.5 ])
+		farolesPositions.push([-9.0, 0.123, -9.5 ])
+		farolesPositions.push([-9.0, 0.123, 10.25])
+		farolesPositions.push([-9.0, 0.123, 30   ])
+		farolesPositions.push([-9.0, 0.123, 49.75])
+		farolesPositions.push([-9.0, 0.123, 69.5 ])
+		farolesPositions.push([ 0.0, 0.123, -9.5 ])
+		farolesPositions.push([ 0.0, 0.123, 69.5 ])
+		farolesPositions.push([ 9.0, 0.123, -9.5 ])
+		farolesPositions.push([ 9.0, 0.123, 10.25])
+		farolesPositions.push([ 9.0, 0.123, 30.0 ])
+		farolesPositions.push([ 9.0, 0.123, 49.75])
+		farolesPositions.push([ 9.0, 0.123, 69.5 ])
 		
 		for (var i = 0; i < 12; i++){
-			faroles[i] = new SceneObject(gl, faroGeometry, farolesMaterial, [plazaTextureColor])
+			faroles[i] = new SceneObject(gl, faroGeometry, farolesMaterial, [faroTextureColor])
 			var x = farolesPositions[i][0]
 			var y = farolesPositions[i][1]
 			var z = farolesPositions[i][2]
@@ -433,6 +523,17 @@ async function main() {
 			faroles[i].updateModelMatrix()
 			sceneObjects.push(faroles[i])
 		}
+
+		for (var i = 0; i < 12; i++){
+			focos[i] = new SceneObject(gl, focoGeometry, focoMaterial, [focoTexture])
+			var x = farolesPositions[i][0]
+			var y = farolesPositions[i][1]
+			var z = farolesPositions[i][2]
+			focos[i].setPosition(x,y+2.1,z)
+			focos[i].updateModelMatrix()
+			sceneObjects.push(focos[i])
+		}
+		
 	}
 	
     // Creacion de bancos.
@@ -469,18 +570,18 @@ async function main() {
 
 	function CrearLucesFaroles(){
 		
-		lightFarolesPositions.push([-9.5, 2.2, -9.5 , 1.0])
-		lightFarolesPositions.push([-9.5, 2.2, 10.25, 1.0])
-		lightFarolesPositions.push([-9.5, 2.2, 30   , 1.0])
-		lightFarolesPositions.push([-9.5, 2.2, 49.75, 1.0])
-		lightFarolesPositions.push([-9.5, 2.2, 69.5 , 1.0])
+		lightFarolesPositions.push([-9.0, 2.2, -9.5 , 1.0])
+		lightFarolesPositions.push([-9.0, 2.2, 10.25, 1.0])
+		lightFarolesPositions.push([-9.0, 2.2, 30   , 1.0])
+		lightFarolesPositions.push([-9.0, 2.2, 49.75, 1.0])
+		lightFarolesPositions.push([-9.0, 2.2, 69.5 , 1.0])
 		lightFarolesPositions.push([ 0.0, 2.2, -9.5 , 1.0])
 		lightFarolesPositions.push([ 0.0, 2.2, 69.5 , 1.0])
-		lightFarolesPositions.push([ 9.5, 2.2, -9.5 , 1.0])
-		lightFarolesPositions.push([ 9.5, 2.2, 10.25, 1.0])
-		lightFarolesPositions.push([ 9.5, 2.2, 30.0 , 1.0])
-		lightFarolesPositions.push([ 9.5, 2.2, 49.75, 1.0])
-		lightFarolesPositions.push([ 9.5, 2.2, 69.5 , 1.0])
+		lightFarolesPositions.push([ 9.0, 2.2, -9.5 , 1.0])
+		lightFarolesPositions.push([ 9.0, 2.2, 10.25, 1.0])
+		lightFarolesPositions.push([ 9.0, 2.2, 30.0 , 1.0])
+		lightFarolesPositions.push([ 9.0, 2.2, 49.75, 1.0])
+		lightFarolesPositions.push([ 9.0, 2.2, 69.5 , 1.0])
 
 		for( let i = 0; i < 12 ; i++ ){
 			lightFaroles[i] = new SceneLight(lightFarolesPositions[i],[255/255, 132/255, 0/255],[0.0, 1.0, 0.0, 0.0],-1.0/* Math.cos(toRadians(175)) */,null)
@@ -489,6 +590,19 @@ async function main() {
 			sceneLights.push(lightFaroles[i])
 		} 
 	}
+
+	
+	function updateFaroles() {
+		for( let i = 0; i < 12 ; i++ ){
+			lightFaroles[i].color = [parseFloat(sliderA1.value) * colorAnt[0], parseFloat(sliderA1.value) * colorAnt[1], parseFloat(sliderA1.value) * colorAnt[2]];
+		} 
+	}
+
+	function updateDireccional() {
+		lightDirectional.color = [parseFloat(sliderA2.value) * colorLuz[0], parseFloat(sliderA2.value) * colorLuz[1], parseFloat(sliderA2.value) * colorLuz[2]];
+	}
+
+
 
 	/**************************************************************************************************** */
 	
